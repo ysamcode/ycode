@@ -89,7 +89,10 @@ export default function FilterableCollection({
         if (condition.fieldType === 'boolean' && inputValue === 'false') continue;
 
         let value = inputValue;
-        if (condition.fieldType === 'reference' && condition.operator === 'is_one_of') {
+        if (
+          (condition.fieldType === 'reference' || condition.fieldType === 'multi_reference') &&
+          ['is_one_of', 'is_not_one_of', 'contains_all_of', 'contains_exactly'].includes(condition.operator)
+        ) {
           value = JSON.stringify([inputValue]);
         }
 
