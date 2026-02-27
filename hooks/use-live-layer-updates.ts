@@ -5,9 +5,9 @@
  */
 
 import { useCallback, useEffect, useRef } from 'react';
-import { useCollaborationPresenceStore } from '../stores/useCollaborationPresenceStore';
+import { useCollaborationPresenceStore, getResourceLockKey } from '../stores/useCollaborationPresenceStore';
 import { useAuthStore } from '../stores/useAuthStore';
-import { usePagesStore } from '../stores/usePagesStore';
+import { usePagesStore, markPageMcpSynced } from '../stores/usePagesStore';
 import { useEditorStore } from '../stores/useEditorStore';
 import { createClient } from '@/lib/supabase-browser';
 import { debounce } from '../lib/collaboration-utils';
@@ -240,8 +240,24 @@ export function useLiveLayerUpdates(
 
     const currentPageId = pageIdRef.current;
     if (currentPageId && payload.page_id === currentPageId) {
+      markPageMcpSynced(currentPageId);
       const { setDraftLayers } = usePagesStore.getState();
       setDraftLayers(currentPageId, payload.layers);
+
+      // Set a 10-second page lock so the UI shows MCP is editing
+      const lockKey = getResourceLockKey('page', currentPageId);
+      useCollaborationPresenceStore.setState((state) => ({
+        resourceLocks: {
+          ...state.resourceLocks,
+          [lockKey]: {
+            resource_type: 'page',
+            resource_id: currentPageId,
+            user_id: payload.user_id,
+            acquired_at: Date.now(),
+            expires_at: Date.now() + 10_000,
+          },
+        },
+      }));
     }
   }, []);
 
