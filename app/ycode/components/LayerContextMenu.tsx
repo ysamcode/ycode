@@ -27,7 +27,6 @@ import type { UseLiveLayerUpdatesReturn } from '@/hooks/use-live-layer-updates';
 import type { UseLiveComponentUpdatesReturn } from '@/hooks/use-live-component-updates';
 import type { Layer } from '@/types';
 import CreateComponentDialog from './CreateComponentDialog';
-import RenameLayerDialog from './RenameLayerDialog';
 import SaveLayoutDialog from './SaveLayoutDialog';
 
 interface LayerContextMenuProps {
@@ -56,7 +55,6 @@ export default function LayerContextMenu({
 }: LayerContextMenuProps) {
   const [isComponentDialogOpen, setIsComponentDialogOpen] = useState(false);
   const [isLayoutDialogOpen, setIsLayoutDialogOpen] = useState(false);
-  const [isRenameDialogOpen, setIsRenameDialogOpen] = useState(false);
   const [layerName, setLayerName] = useState('');
 
   const copyLayer = usePagesStore((state) => state.copyLayer);
@@ -285,19 +283,7 @@ export default function LayerContextMenu({
 
   const handleRename = () => {
     if (!layer) return;
-    setLayerName(layer.customName || layer.name || '');
-    setIsRenameDialogOpen(true);
-  };
-
-  const handleConfirmRename = (newName: string | null) => {
-    const value = newName || undefined;
-    if (isComponentContext && editingComponentId) {
-      updateComponentAndBroadcast(
-        updateLayerProps(getComponentLayers(), layerId, { customName: value })
-      );
-    } else {
-      updateLayer(pageId, layerId, { customName: value });
-    }
+    useEditorStore.getState().setRenamingLayerId(layerId);
   };
 
   const handleCopyStyle = () => {
@@ -679,13 +665,6 @@ export default function LayerContextMenu({
         onOpenChange={setIsComponentDialogOpen}
         onConfirm={handleConfirmCreateComponent}
         layerName={layerName}
-      />
-
-      <RenameLayerDialog
-        open={isRenameDialogOpen}
-        onOpenChange={setIsRenameDialogOpen}
-        onConfirm={handleConfirmRename}
-        currentName={layerName}
       />
 
       <SaveLayoutDialog
