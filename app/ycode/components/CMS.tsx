@@ -1524,7 +1524,7 @@ const CMS = React.memo(function CMS() {
                       </th>
                     );
                   })}
-                  <th className="px-4 py-3 text-left font-medium text-sm w-24 sticky top-0 z-10 bg-background border-b border-border">
+                  <th className="px-4 py-3 text-left font-medium text-sm w-24 sticky right-0 top-0 z-20 bg-background border-b border-border">
                     <Button
                       size="sm"
                       variant="ghost"
