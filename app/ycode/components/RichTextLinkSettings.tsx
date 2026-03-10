@@ -231,8 +231,6 @@ export default function RichTextLinkSettings({
     >
   >(() => {
     const allOptions = [
-      { value: 'none', label: 'No link set', icon: 'none' },
-      { type: 'separator' },
       { value: 'page', label: 'Page', icon: 'page' },
       { value: 'asset', label: 'Asset', icon: 'paperclip' },
       { value: 'field', label: 'CMS field', icon: 'database', disabled: linkFieldGroups.length === 0 },
@@ -248,7 +246,6 @@ export default function RichTextLinkSettings({
     // Filter out excluded link types
     return allOptions.filter((option) => {
       if ('type' in option && option.type === 'separator') return true;
-      if ('value' in option && option.value === 'none') return true;
       if ('value' in option && excludedLinkTypes.includes(option.value as LinkType)) return false;
       return true;
     });
@@ -514,38 +511,50 @@ export default function RichTextLinkSettings({
     <div className="space-y-3 p-2">
       {/* Link Type */}
       <div className="grid grid-cols-3 items-center gap-2">
-        <Label className="text-xs text-muted-foreground">Type</Label>
+        <Label className="text-xs text-muted-foreground">Link To</Label>
         <div className="col-span-2">
-          <Select
-            value={linkType}
-            onValueChange={(newVal) => handleLinkTypeChange(newVal as LinkType | 'none')}
-          >
-            <SelectTrigger className="w-full">
-              <SelectValue placeholder="Select link type" />
-            </SelectTrigger>
-            <SelectContent>
-              {linkTypeOptions.map((option, index) => {
-                if ('type' in option && option.type === 'separator') {
-                  return <SelectSeparator key={`separator-${index}`} />;
-                }
-                if ('value' in option) {
-                  return (
-                    <SelectItem
-                      key={option.value}
-                      value={option.value}
-                      disabled={option.disabled}
-                    >
-                      <div className="flex items-center gap-2">
-                        <Icon name={option.icon as IconProps['name']} className="size-3" />
-                        {option.label}
-                      </div>
-                    </SelectItem>
-                  );
-                }
-                return null;
-              })}
-            </SelectContent>
-          </Select>
+          <div className="flex items-center gap-1">
+            <Select
+              value={linkType === 'none' ? '' : linkType}
+              onValueChange={(newVal) => handleLinkTypeChange(newVal as LinkType | 'none')}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Page or URL..." />
+              </SelectTrigger>
+              <SelectContent>
+                {linkTypeOptions.map((option, index) => {
+                  if ('type' in option && option.type === 'separator') {
+                    return <SelectSeparator key={`separator-${index}`} />;
+                  }
+                  if ('value' in option) {
+                    return (
+                      <SelectItem
+                        key={option.value}
+                        value={option.value}
+                        disabled={option.disabled}
+                      >
+                        <div className="flex items-center gap-2">
+                          <Icon name={option.icon as IconProps['name']} className="size-3" />
+                          {option.label}
+                        </div>
+                      </SelectItem>
+                    );
+                  }
+                  return null;
+                })}
+              </SelectContent>
+            </Select>
+            {linkType !== 'none' && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="size-8 shrink-0"
+                onClick={() => handleLinkTypeChange('none')}
+              >
+                <Icon name="x" className="size-3" />
+              </Button>
+            )}
+          </div>
         </div>
       </div>
 
