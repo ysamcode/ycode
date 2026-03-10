@@ -545,14 +545,14 @@ export default function RichTextLinkSettings({
               </SelectContent>
             </Select>
             {linkType !== 'none' && (
-              <Button
-                variant="ghost"
-                size="xs"
-                className="size-6 shrink-0 p-0"
+              <span
+                role="button"
+                tabIndex={0}
+                className="shrink-0 p-0.5 rounded-sm opacity-70 hover:opacity-100 transition-opacity cursor-pointer"
                 onClick={() => handleLinkTypeChange('none')}
               >
                 <Icon name="x" className="size-2.5" />
-              </Button>
+              </span>
             )}
           </div>
         </div>

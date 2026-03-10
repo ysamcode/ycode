@@ -104,18 +104,23 @@ export default function BackgroundImageSettings({
                   {sourceType === 'custom_url' && (localUrl || 'Custom URL')}
                   {sourceType === 'cms' && 'CMS field'}
                 </span>
-                <div className="ml-auto -mr-1.5">
-                  <Button
-                    variant="ghost"
-                    size="xs"
-                    onClick={(e) => {
+                <span
+                  role="button"
+                  tabIndex={0}
+                  className="ml-auto -mr-0.5 p-0.5 rounded-sm opacity-70 hover:opacity-100 transition-opacity cursor-pointer"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onSourceTypeChange('none');
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
                       e.stopPropagation();
                       onSourceTypeChange('none');
-                    }}
-                  >
-                    <Icon name="x" />
-                  </Button>
-                </div>
+                    }
+                  }}
+                >
+                  <Icon name="x" className="size-2.5" />
+                </span>
               </Button>
             ) : (
               <Button

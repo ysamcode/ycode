@@ -175,17 +175,17 @@ function SortableAnimationItem({
         })()}
       </Badge>
 
-      <Button
-        size="xs"
-        variant="ghost"
-        className="-mr-0.5 cursor-pointer!"
+      <span
+        role="button"
+        tabIndex={0}
+        className="-mr-0.5 p-0.5 rounded-sm opacity-70 hover:opacity-100 transition-opacity cursor-pointer"
         onClick={(e) => {
           e.stopPropagation();
           onRemove();
         }}
       >
-        <Icon name="x" />
-      </Button>
+        <Icon name="x" className="size-2.5" />
+      </span>
     </div>
   );
 }
@@ -1150,18 +1150,17 @@ export default function InteractionsPanel({
                 {TRIGGER_LABELS[interaction.trigger]}
               </Label>
 
-              <div className="ml-auto -my-1 -mr-0.5">
-                <Button
-                  size="xs"
-                  variant="ghost"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleRemoveInteraction(interaction.id);
-                  }}
-                >
-                  <Icon name="x" />
-                </Button>
-              </div>
+              <span
+                role="button"
+                tabIndex={0}
+                className="ml-auto -my-1 -mr-0.5 p-0.5 rounded-sm opacity-70 hover:opacity-100 transition-opacity cursor-pointer"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleRemoveInteraction(interaction.id);
+                }}
+              >
+                <Icon name="x" className="size-2.5" />
+              </span>
             </div>
           ))}
         </div>
@@ -2025,14 +2024,14 @@ export default function InteractionsPanel({
                       <span className="text-xs text-muted-foreground">
                         {propertyOption.label}
                       </span>
-                      <Button
-                        size="xs"
-                        variant="ghost"
-                        className="size-5 p-0"
+                      <span
+                        role="button"
+                        tabIndex={0}
+                        className="p-0.5 rounded-sm opacity-70 hover:opacity-100 transition-opacity cursor-pointer"
                         onClick={() => handleRemovePropertyFromTween(selectedTween.id, propertyOption.type)}
                       >
                         <Icon name="x" className="size-2.5" />
-                      </Button>
+                      </span>
                     </div>
 
                     {propertyOption.properties.map((prop) => {

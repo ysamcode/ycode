@@ -569,15 +569,14 @@ export default function ConditionalVisibilitySettings({
             </div>
             <Label variant="muted" className="truncate">{displayName}</Label>
 
-            <div className="ml-auto -my-1 -mr-0.5 shrink-0">
-              <Button
-                size="xs"
-                variant="ghost"
-                onClick={() => handleRemoveCondition(group.id, condition.id)}
-              >
-                <Icon name="x" />
-              </Button>
-            </div>
+            <span
+              role="button"
+              tabIndex={0}
+              className="ml-auto -my-1 -mr-0.5 shrink-0 p-0.5 rounded-sm opacity-70 hover:opacity-100 transition-opacity cursor-pointer"
+              onClick={() => handleRemoveCondition(group.id, condition.id)}
+            >
+              <Icon name="x" className="size-2.5" />
+            </span>
           </header>
 
           {/* Operator Select */}

@@ -413,16 +413,17 @@ export default function BorderControls({ layer, onLayerUpdate, activeTextStyleKe
                         </div>
                         <Label variant="muted" className="capitalize">{borderStyle || 'Solid'}</Label>
                       </div>
-                      <div className="ml-auto">
-                        <Button
-                          size="xs"
-                          className="-mr-1.5"
-                          variant="ghost"
-                          onClick={handleRemoveBorder}
-                        >
-                          <Icon name="x" />
-                        </Button>
-                      </div>
+                      <span
+                        role="button"
+                        tabIndex={0}
+                        className="ml-auto -mr-0.5 p-0.5 rounded-sm opacity-70 hover:opacity-100 transition-opacity cursor-pointer"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleRemoveBorder();
+                        }}
+                      >
+                        <Icon name="x" className="size-2.5" />
+                      </span>
                   </Button>
                 )}
               </PopoverTrigger>
@@ -649,12 +650,14 @@ export default function BorderControls({ layer, onLayerUpdate, activeTextStyleKe
                   </div>
                 </PopoverContent>
               </Popover>
-              <Button
-                variant="ghost" size="xs"
+              <span
+                role="button"
+                tabIndex={0}
+                className="p-0.5 rounded-sm opacity-70 hover:opacity-100 transition-opacity cursor-pointer"
                 onClick={handleRemoveDivider}
               >
-                <Icon name="x" />
-              </Button>
+                <Icon name="x" className="size-2.5" />
+              </span>
             </div>
           </div>
         )}

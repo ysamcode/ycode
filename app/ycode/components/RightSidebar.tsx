@@ -2726,13 +2726,14 @@ const RightSidebar = React.memo(function RightSidebar({
                       className="flex items-center justify-between pl-3 pr-1 h-8 bg-muted text-muted-foreground rounded-lg"
                     >
                       <span>{name}=&quot;{value as string}&quot;</span>
-                      <Button
+                      <span
+                        role="button"
+                        tabIndex={0}
+                        className="p-0.5 rounded-sm opacity-70 hover:opacity-100 transition-opacity cursor-pointer"
                         onClick={() => handleRemoveAttribute(name)}
-                        variant="ghost"
-                        size="xs"
                       >
-                        <Icon name="x" />
-                      </Button>
+                        <Icon name="x" className="size-2.5" />
+                      </span>
                     </div>
                   ))}
                 </div>

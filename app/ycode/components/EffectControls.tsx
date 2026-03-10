@@ -579,18 +579,23 @@ export default function EffectControls({ layer, onLayerUpdate, activeTextStyleKe
                       onClick={() => handleEditShadow(shadow.id)}
                     >
                       <Label variant="muted" className="cursor-pointer">{getShadowDisplayName(shadow)}</Label>
-                      <div className="ml-auto -mr-1.5">
-                        <Button
-                          variant="ghost"
-                          size="xs"
-                          onClick={(e) => {
+                      <span
+                        role="button"
+                        tabIndex={0}
+                        className="ml-auto -mr-0.5 p-0.5 rounded-sm opacity-70 hover:opacity-100 transition-opacity cursor-pointer"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleRemoveShadow(shadow.id);
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
                             e.stopPropagation();
                             handleRemoveShadow(shadow.id);
-                          }}
-                        >
-                          <Icon name="x" />
-                        </Button>
-                      </div>
+                          }
+                        }}
+                      >
+                        <Icon name="x" className="size-2.5" />
+                      </span>
                     </Button>
                   ))}
 
@@ -638,12 +643,14 @@ export default function EffectControls({ layer, onLayerUpdate, activeTextStyleKe
                     step={1}
                   />
                 </div>
-                <Button
-                  variant="ghost" size="xs"
+                <span
+                  role="button"
+                  tabIndex={0}
+                  className="p-0.5 rounded-sm opacity-70 hover:opacity-100 transition-opacity cursor-pointer"
                   onClick={handleRemoveBlur}
                 >
-                  <Icon name="x" />
-                </Button>
+                  <Icon name="x" className="size-2.5" />
+                </span>
               </div>
             </div>
           )}
@@ -671,12 +678,14 @@ export default function EffectControls({ layer, onLayerUpdate, activeTextStyleKe
                     step={1}
                   />
                 </div>
-                <Button
-                  variant="ghost" size="xs"
+                <span
+                  role="button"
+                  tabIndex={0}
+                  className="p-0.5 rounded-sm opacity-70 hover:opacity-100 transition-opacity cursor-pointer"
                   onClick={handleRemoveBackdropBlur}
                 >
-                  <Icon name="x" />
-                </Button>
+                  <Icon name="x" className="size-2.5" />
+                </span>
               </div>
             </div>
           )}

@@ -1514,15 +1514,14 @@ export default function ColorPicker({
           <Label variant="muted" className="truncate max-w-30 cursor-pointer">
             {imagePreviewUrl ? (imageLabel || 'Image') : getDisplayText(displayValue, rgbaColor.a)}
           </Label>
-          <div className="ml-auto -mr-1.5">
-            <Button
-              variant="ghost"
-              size="xs"
-              onClick={handleClear}
-            >
-              <Icon name="x" />
-            </Button>
-          </div>
+          <span
+            role="button"
+            tabIndex={0}
+            className="ml-auto -mr-0.5 p-0.5 rounded-sm opacity-70 hover:opacity-100 transition-opacity cursor-pointer"
+            onClick={handleClear}
+          >
+            <Icon name="x" className="size-2.5" />
+          </span>
         </div>
       ) : (
           <Button
@@ -1620,12 +1619,14 @@ export default function ColorPicker({
                     <Label variant="muted" className="truncate text-xs flex-1">
                       {solidBinding.fieldName || 'Color field'}
                     </Label>
-                    <Button
-                      variant="ghost" size="xs"
-                      onClick={() => binding?.onUnbind(null)} className="-mr-1.5"
+                    <span
+                      role="button"
+                      tabIndex={0}
+                      className="ml-auto -mr-0.5 p-0.5 rounded-sm opacity-70 hover:opacity-100 transition-opacity cursor-pointer"
+                      onClick={() => binding?.onUnbind(null)}
                     >
-                      <Icon name="x" />
-                    </Button>
+                      <Icon name="x" className="size-2.5" />
+                    </span>
                   </div>
                 ) : (
                   <div className="flex items-center gap-2">
@@ -1765,12 +1766,14 @@ export default function ColorPicker({
                           <Label variant="muted" className="truncate text-xs flex-1">
                             {stopBinding.fieldName || 'Color field'}
                           </Label>
-                          <Button
-                            variant="ghost" size="xs"
-                            onClick={() => binding?.onUnbind(selectedStopId)} className="-mr-1.5"
+                          <span
+                            role="button"
+                            tabIndex={0}
+                            className="ml-auto -mr-0.5 p-0.5 rounded-sm opacity-70 hover:opacity-100 transition-opacity cursor-pointer"
+                            onClick={() => binding?.onUnbind(selectedStopId)}
                           >
-                            <Icon name="x" />
-                          </Button>
+                            <Icon name="x" className="size-2.5" />
+                          </span>
                         </div>
                       ) : (
                         <div className="flex items-center gap-2">
@@ -1899,12 +1902,14 @@ export default function ColorPicker({
                           <Label variant="muted" className="truncate text-xs flex-1">
                             {stopBinding.fieldName || 'Color field'}
                           </Label>
-                          <Button
-                            variant="ghost" size="xs"
-                            onClick={() => binding?.onUnbind(selectedStopId)} className="-mr-1.5"
+                          <span
+                            role="button"
+                            tabIndex={0}
+                            className="ml-auto -mr-0.5 p-0.5 rounded-sm opacity-70 hover:opacity-100 transition-opacity cursor-pointer"
+                            onClick={() => binding?.onUnbind(selectedStopId)}
                           >
-                            <Icon name="x" />
-                          </Button>
+                            <Icon name="x" className="size-2.5" />
+                          </span>
                         </div>
                       ) : (
                         <div className="flex items-center gap-2">

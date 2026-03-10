@@ -574,13 +574,14 @@ export default function TypographyControls({ layer, onLayerUpdate, activeTextSty
                   </div>
                 </PopoverContent>
               </Popover>
-              <Button
-                variant="ghost"
-                size="xs"
+              <span
+                role="button"
+                tabIndex={0}
+                className="p-0.5 rounded-sm opacity-70 hover:opacity-100 transition-opacity cursor-pointer"
                 onClick={handleRemoveUnderline}
               >
-                <Icon name="x" />
-              </Button>
+                <Icon name="x" className="size-2.5" />
+              </span>
             </div>
           </div>
         )}
