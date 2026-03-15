@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { getAllFonts, createFont, deleteFont } from '@/lib/repositories/fontRepository';
+import { getAllFonts, createFont, updateFont, deleteFont } from '@/lib/repositories/fontRepository';
 
 export function registerFontTools(server: McpServer) {
   server.tool(
@@ -55,6 +55,25 @@ export function registerFontTools(server: McpServer) {
           }, null, 2),
         }],
       };
+    },
+  );
+
+  server.tool(
+    'update_font',
+    'Update a font (change weights, variants, or category).',
+    {
+      font_id: z.string().describe('The font ID to update'),
+      weights: z.array(z.string()).optional().describe('Updated list of weights (e.g. ["400", "500", "600", "700"])'),
+      variants: z.array(z.string()).optional().describe('Updated list of variants'),
+      category: z.string().optional().describe('Font category'),
+    },
+    async ({ font_id, weights, variants, category }) => {
+      const updates: Record<string, unknown> = {};
+      if (weights) updates.weights = weights;
+      if (variants) updates.variants = variants;
+      if (category) updates.category = category;
+      const font = await updateFont(font_id, updates);
+      return { content: [{ type: 'text' as const, text: JSON.stringify({ message: `Updated font "${font.family}"`, font }, null, 2) }] };
     },
   );
 

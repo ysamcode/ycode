@@ -37,6 +37,9 @@ Each layer has:
 **Structure** (can have children):
 - \`section\` — Full-width wrapper. Use for major page sections (hero, features, footer).
 - \`div\` — Generic block. Use as container, card, row, column.
+- \`columns\` — 2-column flexbox layout
+- \`grid\` — 2x2 CSS Grid layout
+- \`collection\` — CMS collection list (repeats children for each item)
 
 **Content** (leaf elements, no children):
 - \`text\` — Text element. Set tag via settings.tag: "h1"-"h6", "p", "span", "label"
@@ -44,21 +47,28 @@ Each layer has:
 - \`richText\` — Rich text block supporting headings, paragraphs, lists, blockquotes, links, bold/italic
 
 **Media** (leaf elements):
-- \`image\` — Image element
-- \`video\` — Video player
+- \`image\` — Image element. Use update_layer_image to set asset.
+- \`video\` — Video player. Use update_layer_video to set source.
 - \`audio\` — Audio player
 - \`icon\` — SVG icon (24x24 default)
-- \`iframe\` — Embed external content
+- \`iframe\` — Embed external content. Use update_layer_iframe to set URL.
 
 **Interactive**:
-- \`button\` — Button (can have text child)
+- \`button\` — Button (can have text child). Use update_layer_link to set destination.
 - \`form\` — Form container
-- \`input\`, \`textarea\`, \`select\` — Form fields
+- \`input\`, \`textarea\` — Text fields
+- \`select\` — Dropdown select
+- \`checkbox\` — Checkbox input
+- \`radio\` — Radio button
+- \`filter\` — Collection filter input
+- \`label\` — Form label
 
 **Utility**:
-- \`htmlEmbed\` — Custom HTML/CSS/JS code block
-- \`slider\` — Image/content carousel with slides, navigation arrows, pagination, and autoplay
-- \`lightbox\` — Fullscreen image gallery overlay with thumbnails, navigation, and zoom
+- \`htmlEmbed\` — Custom HTML/CSS/JS code block. Set code via update_layer_settings.
+- \`slider\` — Image/content carousel with slides, navigation, pagination, autoplay
+- \`lightbox\` — Fullscreen image gallery with thumbnails, navigation, zoom
+- \`map\` — Interactive map element
+- \`localeSelector\` — Language switcher for multi-language sites
 - \`hr\` — Horizontal divider
 
 ### Nesting Rules
@@ -140,6 +150,69 @@ Use \`set_rich_text_content\` or the batch \`set_rich_text\` operation.
 
 **Supported block types:** paragraph, heading (level 1-6), blockquote, bulletList, orderedList, codeBlock, horizontalRule
 **Inline formatting:** \`**bold**\`, \`*italic*\`, \`[link text](url)\`
+
+### Layer Content & Configuration
+
+**Setting images:**
+\`\`\`
+upload_asset({ url: "https://example.com/photo.jpg" })
+// returns asset_id
+update_layer_image({ layer_id: "...", asset_id: "...", alt: "Photo description" })
+\`\`\`
+
+**Setting links on buttons/elements:**
+\`\`\`
+update_layer_link({ layer_id: "...", link_type: "url", url: "https://example.com", target: "_blank" })
+update_layer_link({ layer_id: "...", link_type: "page", page_id_target: "<page_id>" })
+update_layer_link({ layer_id: "...", link_type: "email", email: "hello@example.com" })
+\`\`\`
+
+**Setting videos:**
+\`\`\`
+update_layer_video({ layer_id: "...", source_type: "youtube", youtube_id: "dQw4w9WgXcQ" })
+\`\`\`
+
+**Setting background images:**
+\`\`\`
+update_layer_background_image({ layer_id: "...", asset_id: "..." })
+\`\`\`
+
+**Changing HTML tags** (e.g. heading level):
+\`\`\`
+update_layer_settings({ layer_id: "...", tag: "h2" })
+\`\`\`
+
+**Configuring sliders** (after adding):
+\`\`\`
+update_layer_settings({ layer_id: "...", slider: { autoplay: true, delay: "5", loop: "loop" } })
+\`\`\`
+
+**Setting HTML embed code:**
+\`\`\`
+update_layer_settings({ layer_id: "...", html_embed_code: "<div>Custom HTML</div>" })
+\`\`\`
+
+**Setting iframe URLs:**
+\`\`\`
+update_layer_iframe({ layer_id: "...", url: "https://www.youtube.com/embed/..." })
+\`\`\`
+
+### Page Settings
+
+**SEO** — Set meta title, description, OG image, and noindex:
+\`\`\`
+update_page_settings({ page_id: "...", seo: { title: "About Us", description: "Learn about our company", noindex: false } })
+\`\`\`
+
+**Custom code** — Inject scripts into head or body:
+\`\`\`
+update_page_settings({ page_id: "...", custom_code: { head: "<script>...</script>" } })
+\`\`\`
+
+**Password protection:**
+\`\`\`
+update_page_settings({ page_id: "...", auth: { enabled: true, password: "secret" } })
+\`\`\`
 
 ### Components (Reusable Elements)
 

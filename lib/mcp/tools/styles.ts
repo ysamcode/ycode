@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { DesignProperties, Layer } from '@/types';
-import { getAllStyles, createStyle } from '@/lib/repositories/layerStyleRepository';
+import { getAllStyles, createStyle, updateStyle, deleteStyle } from '@/lib/repositories/layerStyleRepository';
 import { getDraftLayers, upsertDraftLayers } from '@/lib/repositories/pageLayersRepository';
 import { findLayerById, updateLayerById, designToClassString } from '@/lib/mcp/utils';
 import { designSchema } from './shared-schemas';
@@ -60,6 +60,36 @@ export function registerStyleTools(server: McpServer) {
       await upsertDraftLayers(page_id, updated);
 
       return { content: [{ type: 'text' as const, text: `Applied style "${style_id}" to "${layer.customName || layer.name}"` }] };
+    },
+  );
+
+  server.tool(
+    'update_style',
+    'Update a reusable layer style — change its name or design properties.',
+    {
+      style_id: z.string().describe('The style ID to update'),
+      name: z.string().optional().describe('New style name'),
+      design: designSchema.optional(),
+    },
+    async ({ style_id, name, design }) => {
+      const updates: Record<string, unknown> = {};
+      if (name) updates.name = name;
+      if (design) {
+        updates.design = design;
+        updates.classes = designToClassString(design as DesignProperties);
+      }
+      const style = await updateStyle(style_id, updates);
+      return { content: [{ type: 'text' as const, text: JSON.stringify({ message: `Updated style "${style.name}"`, style }, null, 2) }] };
+    },
+  );
+
+  server.tool(
+    'delete_style',
+    'Delete a reusable layer style. Layers using this style will lose it.',
+    { style_id: z.string().describe('The style ID to delete') },
+    async ({ style_id }) => {
+      await deleteStyle(style_id);
+      return { content: [{ type: 'text' as const, text: `Deleted style ${style_id}` }] };
     },
   );
 }

@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import type { DesignProperties, Layer } from '@/types';
+import type { DesignProperties, Layer, LinkSettings } from '@/types';
 import { getDraftLayers, upsertDraftLayers } from '@/lib/repositories/pageLayersRepository';
 import {
   findLayerById,
@@ -280,6 +280,255 @@ IMPORTANT: Set isActive: true on any design category you want to apply.`,
       const updated = moveLayerInTree(layers, layer_id, new_parent_id, position);
       await savePageLayers(page_id, updated);
       return { content: [{ type: 'text' as const, text: `Moved "${layer.customName || layer.name}" into "${newParent.customName || newParent.name}"` }] };
+    },
+  );
+
+  server.tool(
+    'update_layer_image',
+    'Set the image source of an image layer using an asset ID (from upload_asset or list_assets). Optionally set alt text.',
+    {
+      page_id: z.string().describe('The page ID'),
+      layer_id: z.string().describe('The image layer ID'),
+      asset_id: z.string().describe('Asset ID from the asset library'),
+      alt: z.string().optional().describe('Image alt text for accessibility'),
+    },
+    async ({ page_id, layer_id, asset_id, alt }) => {
+      const layers = await getPageLayers(page_id);
+      const layer = findLayerById(layers, layer_id);
+      if (!layer) {
+        return { content: [{ type: 'text' as const, text: `Error: Layer "${layer_id}" not found.` }], isError: true };
+      }
+
+      const updated = updateLayerById(layers, layer_id, (l) => ({
+        ...l,
+        variables: {
+          ...l.variables,
+          image: {
+            src: { type: 'asset' as const, data: { asset_id } },
+            alt: { type: 'dynamic_text' as const, data: { content: alt || '' } },
+          },
+        },
+      }));
+
+      await savePageLayers(page_id, updated);
+      return { content: [{ type: 'text' as const, text: `Set image for "${layer.customName || layer.name}" to asset ${asset_id}` }] };
+    },
+  );
+
+  server.tool(
+    'update_layer_link',
+    `Configure a link on any layer (button, div, text, image, etc.).
+
+LINK TYPES:
+- url: External URL (e.g. "https://example.com")
+- page: Link to another page in the site
+- email: Mailto link
+- phone: Tel link
+- asset: Download link to an asset`,
+    {
+      page_id: z.string().describe('The page ID'),
+      layer_id: z.string().describe('The layer ID'),
+      link_type: z.enum(['url', 'email', 'phone', 'asset', 'page']).describe('Type of link'),
+      url: z.string().optional().describe('For url type: the target URL'),
+      page_id_target: z.string().optional().describe('For page type: the target page ID'),
+      email: z.string().optional().describe('For email type: the email address'),
+      phone: z.string().optional().describe('For phone type: the phone number'),
+      asset_id: z.string().optional().describe('For asset type: the asset ID to download'),
+      target: z.enum(['_blank', '_self']).optional().describe('Link target. _blank opens new tab.'),
+    },
+    async ({ page_id, layer_id, link_type, url, page_id_target, email, phone, asset_id, target }) => {
+      const layers = await getPageLayers(page_id);
+      const layer = findLayerById(layers, layer_id);
+      if (!layer) {
+        return { content: [{ type: 'text' as const, text: `Error: Layer "${layer_id}" not found.` }], isError: true };
+      }
+
+      const link: LinkSettings = { type: link_type };
+      if (link_type === 'url' && url) link.url = { type: 'dynamic_text', data: { content: url } };
+      if (link_type === 'email' && email) link.email = { type: 'dynamic_text', data: { content: email } };
+      if (link_type === 'phone' && phone) link.phone = { type: 'dynamic_text', data: { content: phone } };
+      if (link_type === 'asset' && asset_id) link.asset = { id: asset_id };
+      if (link_type === 'page' && page_id_target) link.page = { id: page_id_target };
+      if (target) link.target = target;
+
+      const updated = updateLayerById(layers, layer_id, (l) => ({
+        ...l,
+        variables: { ...l.variables, link },
+      }));
+
+      await savePageLayers(page_id, updated);
+      return { content: [{ type: 'text' as const, text: `Set ${link_type} link on "${layer.customName || layer.name}"` }] };
+    },
+  );
+
+  server.tool(
+    'update_layer_video',
+    'Set the video source of a video layer. Supports asset IDs, YouTube video IDs, or direct URLs.',
+    {
+      page_id: z.string().describe('The page ID'),
+      layer_id: z.string().describe('The video layer ID'),
+      source_type: z.enum(['asset', 'youtube', 'url']).describe('Video source type'),
+      asset_id: z.string().optional().describe('For asset type: asset ID'),
+      youtube_id: z.string().optional().describe('For youtube type: YouTube video ID (e.g. "dQw4w9WgXcQ")'),
+      url: z.string().optional().describe('For url type: direct video URL'),
+      poster_asset_id: z.string().optional().describe('Asset ID for poster/thumbnail image'),
+    },
+    async ({ page_id, layer_id, source_type, asset_id, youtube_id, url, poster_asset_id }) => {
+      const layers = await getPageLayers(page_id);
+      const layer = findLayerById(layers, layer_id);
+      if (!layer) {
+        return { content: [{ type: 'text' as const, text: `Error: Layer "${layer_id}" not found.` }], isError: true };
+      }
+
+      let src;
+      if (source_type === 'asset' && asset_id) src = { type: 'asset' as const, data: { asset_id } };
+      else if (source_type === 'youtube' && youtube_id) src = { type: 'video' as const, data: { provider: 'youtube' as const, video_id: youtube_id } };
+      else if (source_type === 'url' && url) src = { type: 'dynamic_text' as const, data: { content: url } };
+      else return { content: [{ type: 'text' as const, text: 'Error: Provide asset_id, youtube_id, or url matching the source_type.' }], isError: true };
+
+      const videoVar: Record<string, unknown> = { src };
+      if (poster_asset_id) videoVar.poster = { type: 'asset', data: { asset_id: poster_asset_id } };
+
+      const updated = updateLayerById(layers, layer_id, (l) => ({
+        ...l,
+        variables: { ...l.variables, video: videoVar },
+      }));
+
+      await savePageLayers(page_id, updated);
+      return { content: [{ type: 'text' as const, text: `Set video source for "${layer.customName || layer.name}"` }] };
+    },
+  );
+
+  server.tool(
+    'update_layer_background_image',
+    'Set a background image on any layer using an asset ID or URL.',
+    {
+      page_id: z.string().describe('The page ID'),
+      layer_id: z.string().describe('The layer ID'),
+      asset_id: z.string().optional().describe('Asset ID for the background image'),
+      url: z.string().optional().describe('Direct URL for the background image'),
+    },
+    async ({ page_id, layer_id, asset_id, url }) => {
+      const layers = await getPageLayers(page_id);
+      const layer = findLayerById(layers, layer_id);
+      if (!layer) {
+        return { content: [{ type: 'text' as const, text: `Error: Layer "${layer_id}" not found.` }], isError: true };
+      }
+      if (!asset_id && !url) {
+        return { content: [{ type: 'text' as const, text: 'Error: Provide either asset_id or url.' }], isError: true };
+      }
+
+      const src = asset_id
+        ? { type: 'asset' as const, data: { asset_id } }
+        : { type: 'dynamic_text' as const, data: { content: url! } };
+
+      const updated = updateLayerById(layers, layer_id, (l) => ({
+        ...l,
+        variables: { ...l.variables, backgroundImage: { src } },
+      }));
+
+      await savePageLayers(page_id, updated);
+      return { content: [{ type: 'text' as const, text: `Set background image for "${layer.customName || layer.name}"` }] };
+    },
+  );
+
+  server.tool(
+    'update_layer_settings',
+    `Update layer settings like HTML tag, custom ID, custom attributes, embed code, and slider/lightbox configuration.
+
+COMMON USES:
+- Change heading level: tag "h1", "h2", "h3", etc.
+- Set HTML embed code: html_embed_code "<script>..."
+- Add custom attributes: custom_attributes { "data-analytics": "hero" }
+- Set custom HTML ID: html_id "my-section"
+- Configure slider: slider { autoplay: true, delay: "5", loop: "loop", pagination: true }
+- Configure lightbox: lightbox { thumbnails: true, zoom: true, navigation: true }`,
+    {
+      page_id: z.string().describe('The page ID'),
+      layer_id: z.string().describe('The layer ID'),
+      tag: z.string().optional().describe('HTML tag override: h1, h2, h3, h4, h5, h6, p, span, div, section, nav, footer, header, main, aside, article'),
+      html_id: z.string().optional().describe('Custom HTML element ID (for anchor links, CSS targeting)'),
+      html_embed_code: z.string().optional().describe('For htmlEmbed layers: the HTML/CSS/JS code to embed'),
+      custom_attributes: z.record(z.string(), z.string()).optional().describe('Custom HTML attributes as { name: value } pairs'),
+      custom_name: z.string().optional().describe('Display name for the layer in the builder'),
+      slider: z.object({
+        navigation: z.boolean().optional().describe('Show prev/next arrows'),
+        pagination: z.boolean().optional().describe('Show pagination bullets'),
+        paginationType: z.enum(['bullets', 'fraction']).optional().describe('Pagination style'),
+        autoplay: z.boolean().optional().describe('Auto-advance slides'),
+        pauseOnHover: z.boolean().optional().describe('Pause autoplay on hover'),
+        delay: z.string().optional().describe('Autoplay delay in seconds (e.g. "3", "5")'),
+        loop: z.enum(['none', 'loop', 'rewind']).optional().describe('Loop mode'),
+        animationEffect: z.enum(['slide', 'fade', 'cube', 'coverflow', 'flip', 'creative']).optional(),
+        duration: z.string().optional().describe('Transition duration in seconds (e.g. "0.5")'),
+        centered: z.boolean().optional().describe('Center active slide'),
+        mousewheel: z.boolean().optional().describe('Navigate with scroll wheel'),
+      }).optional().describe('Slider settings (only for slider layers)'),
+      lightbox: z.object({
+        thumbnails: z.boolean().optional().describe('Show thumbnails strip'),
+        navigation: z.boolean().optional().describe('Show prev/next arrows'),
+        pagination: z.boolean().optional().describe('Show pagination'),
+        zoom: z.boolean().optional().describe('Enable pinch-to-zoom'),
+        doubleTapZoom: z.boolean().optional().describe('Enable double-tap zoom'),
+        mousewheel: z.boolean().optional().describe('Navigate with scroll wheel'),
+        overlay: z.enum(['light', 'dark']).optional().describe('Overlay background style'),
+        animationEffect: z.enum(['slide', 'fade', 'cube', 'coverflow', 'flip', 'creative']).optional(),
+        duration: z.string().optional().describe('Transition duration in seconds'),
+      }).optional().describe('Lightbox settings (only for lightbox layers)'),
+    },
+    async ({ page_id, layer_id, tag, html_id, html_embed_code, custom_attributes, custom_name, slider, lightbox }) => {
+      const layers = await getPageLayers(page_id);
+      const layer = findLayerById(layers, layer_id);
+      if (!layer) {
+        return { content: [{ type: 'text' as const, text: `Error: Layer "${layer_id}" not found.` }], isError: true };
+      }
+
+      const updated = updateLayerById(layers, layer_id, (l) => {
+        const settings = { ...l.settings };
+        if (tag) settings.tag = tag;
+        if (html_id) settings.id = html_id;
+        if (custom_attributes) settings.customAttributes = { ...settings.customAttributes, ...custom_attributes };
+        if (html_embed_code !== undefined) settings.htmlEmbed = { ...settings.htmlEmbed, code: html_embed_code };
+        if (slider && settings.slider) settings.slider = { ...settings.slider, ...slider };
+        if (lightbox && settings.lightbox) settings.lightbox = { ...settings.lightbox, ...lightbox };
+
+        return {
+          ...l,
+          settings,
+          ...(custom_name ? { customName: custom_name } : {}),
+        };
+      });
+
+      await savePageLayers(page_id, updated);
+      return { content: [{ type: 'text' as const, text: `Updated settings for "${layer.customName || layer.name}"` }] };
+    },
+  );
+
+  server.tool(
+    'update_layer_iframe',
+    'Set the source URL for an iframe layer.',
+    {
+      page_id: z.string().describe('The page ID'),
+      layer_id: z.string().describe('The iframe layer ID'),
+      url: z.string().describe('The URL to embed in the iframe'),
+    },
+    async ({ page_id, layer_id, url }) => {
+      const layers = await getPageLayers(page_id);
+      const layer = findLayerById(layers, layer_id);
+      if (!layer) {
+        return { content: [{ type: 'text' as const, text: `Error: Layer "${layer_id}" not found.` }], isError: true };
+      }
+
+      const updated = updateLayerById(layers, layer_id, (l) => ({
+        ...l,
+        variables: {
+          ...l.variables,
+          iframe: { src: { type: 'dynamic_text' as const, data: { content: url } } },
+        },
+      }));
+
+      await savePageLayers(page_id, updated);
+      return { content: [{ type: 'text' as const, text: `Set iframe URL for "${layer.customName || layer.name}" to "${url}"` }] };
     },
   );
 }

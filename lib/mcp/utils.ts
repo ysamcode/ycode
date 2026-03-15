@@ -499,6 +499,51 @@ export const ELEMENT_TEMPLATES: Record<string, ElementTemplateEntry> = {
       },
     },
   },
+  columns: {
+    name: 'Columns',
+    description: '2-column horizontal layout using flexbox.',
+    useBlocksTemplate: true,
+  },
+  grid: {
+    name: 'Grid',
+    description: '2x2 CSS Grid layout.',
+    useBlocksTemplate: true,
+  },
+  collection: {
+    name: 'Collection List',
+    description: 'CMS collection list — repeats its children for each item in the bound collection. Bind to a collection after adding.',
+    useBlocksTemplate: true,
+  },
+  select: {
+    name: 'Select',
+    description: 'Dropdown select input for forms.',
+    useBlocksTemplate: true,
+  },
+  checkbox: {
+    name: 'Checkbox',
+    description: 'Checkbox input for forms.',
+    useBlocksTemplate: true,
+  },
+  radio: {
+    name: 'Radio',
+    description: 'Radio button input for forms.',
+    useBlocksTemplate: true,
+  },
+  filter: {
+    name: 'Filter',
+    description: 'Collection filter input — filters a collection list by a field value.',
+    useBlocksTemplate: true,
+  },
+  label: {
+    name: 'Label',
+    description: 'Form label element.',
+    useBlocksTemplate: true,
+  },
+  map: {
+    name: 'Map',
+    description: 'Interactive map element.',
+    useBlocksTemplate: true,
+  },
   slider: {
     name: 'Slider',
     description: 'Image/content slider (carousel) with navigation arrows, pagination bullets, and configurable autoplay. Comes with 3 default slides.',
@@ -507,6 +552,11 @@ export const ELEMENT_TEMPLATES: Record<string, ElementTemplateEntry> = {
   lightbox: {
     name: 'Lightbox',
     description: 'Lightbox overlay for viewing images in a fullscreen gallery with navigation, thumbnails, and zoom.',
+    useBlocksTemplate: true,
+  },
+  localeSelector: {
+    name: 'Locale Selector',
+    description: 'Language switcher dropdown for multi-language sites.',
     useBlocksTemplate: true,
   },
 };

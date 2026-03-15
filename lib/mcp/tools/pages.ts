@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { getAllPages, getPageById, getPagesByFolder, createPage, updatePage, deletePage } from '@/lib/repositories/pageRepository';
+import { getAllPages, getPageById, getPagesByFolder, createPage, updatePage, deletePage, duplicatePage } from '@/lib/repositories/pageRepository';
 import { getAllPageFolders } from '@/lib/repositories/pageFolderRepository';
 import { upsertDraftLayers } from '@/lib/repositories/pageLayersRepository';
 import { broadcastPageCreated, broadcastPageUpdated, broadcastPageDeleted, broadcastLayersChanged } from '@/lib/mcp/broadcast';
@@ -80,17 +80,91 @@ export function registerPageTools(server: McpServer) {
 
   server.tool(
     'update_page',
-    "Update a page's settings (name, slug, SEO settings, etc.)",
+    "Update a page's name, slug, or folder.",
     {
       page_id: z.string().describe('The page ID to update'),
       name: z.string().optional().describe('New page title'),
       slug: z.string().optional().describe('New URL slug'),
-      settings: z.record(z.string(), z.unknown()).optional().describe('Page settings object'),
+      page_folder_id: z.string().nullable().optional().describe('Move to folder ID, or null for root'),
     },
     async ({ page_id, ...data }) => {
       const page = await updatePage(page_id, data);
       broadcastPageUpdated(page_id, data).catch(() => {});
       return { content: [{ type: 'text' as const, text: JSON.stringify(page, null, 2) }] };
+    },
+  );
+
+  server.tool(
+    'update_page_settings',
+    `Update page SEO, custom code, or password protection settings.
+
+SEO: Set title, description, noindex, and OG image (asset ID).
+Custom code: Inject HTML into <head> or before </body>.
+Password protection: Enable/disable with a password.`,
+    {
+      page_id: z.string().describe('The page ID'),
+      seo: z.object({
+        title: z.string().optional().describe('SEO title (appears in browser tab and search results)'),
+        description: z.string().optional().describe('SEO meta description'),
+        noindex: z.boolean().optional().describe('Prevent search engines from indexing this page'),
+        image_asset_id: z.string().nullable().optional().describe('OG image asset ID for social sharing'),
+      }).optional(),
+      custom_code: z.object({
+        head: z.string().optional().describe('HTML to inject into <head> (e.g. analytics scripts)'),
+        body: z.string().optional().describe('HTML to inject before </body>'),
+      }).optional(),
+      auth: z.object({
+        enabled: z.boolean().describe('Enable or disable password protection'),
+        password: z.string().optional().describe('Password for accessing the page'),
+      }).optional(),
+    },
+    async ({ page_id, seo, custom_code, auth }) => {
+      const existing = await getPageById(page_id);
+      if (!existing) {
+        return { content: [{ type: 'text' as const, text: `Error: Page "${page_id}" not found.` }], isError: true };
+      }
+
+      const settings = { ...existing.settings };
+
+      if (seo) {
+        settings.seo = {
+          ...(settings.seo || { title: '', description: '', noindex: false, image: null }),
+          ...(seo.title !== undefined ? { title: seo.title } : {}),
+          ...(seo.description !== undefined ? { description: seo.description } : {}),
+          ...(seo.noindex !== undefined ? { noindex: seo.noindex } : {}),
+          ...(seo.image_asset_id !== undefined ? { image: seo.image_asset_id } : {}),
+        };
+      }
+
+      if (custom_code) {
+        settings.custom_code = {
+          ...(settings.custom_code || { head: '', body: '' }),
+          ...(custom_code.head !== undefined ? { head: custom_code.head } : {}),
+          ...(custom_code.body !== undefined ? { body: custom_code.body } : {}),
+        };
+      }
+
+      if (auth) {
+        settings.auth = {
+          enabled: auth.enabled,
+          password: auth.password || settings.auth?.password || '',
+        };
+      }
+
+      const page = await updatePage(page_id, { settings });
+      broadcastPageUpdated(page_id, { settings }).catch(() => {});
+      return { content: [{ type: 'text' as const, text: JSON.stringify({ message: 'Updated page settings', settings: page.settings }, null, 2) }] };
+    },
+  );
+
+  server.tool(
+    'duplicate_page',
+    'Create a copy of a page including all its layers.',
+    { page_id: z.string().describe('The page ID to duplicate') },
+    async ({ page_id }) => {
+      const page = await duplicatePage(page_id);
+      broadcastPageCreated(page).catch(() => {});
+      return { content: [{ type: 'text' as const, text: JSON.stringify({ message: `Duplicated page as "${page.name}"`, page }, null, 2) }] };
     },
   );
 

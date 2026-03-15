@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { getAllCollections, createCollection } from '@/lib/repositories/collectionRepository';
-import { getFieldsByCollectionId, createField } from '@/lib/repositories/collectionFieldRepository';
+import { getAllCollections, createCollection, updateCollection, deleteCollection } from '@/lib/repositories/collectionRepository';
+import { getFieldsByCollectionId, createField, updateField, deleteField } from '@/lib/repositories/collectionFieldRepository';
 import { getItemsByCollectionId, getItemsWithValues, createItem, deleteItem } from '@/lib/repositories/collectionItemRepository';
 import { setValuesByFieldName } from '@/lib/repositories/collectionItemValueRepository';
 
@@ -126,6 +126,54 @@ FIELD TYPES:
     async ({ item_id }) => {
       await deleteItem(item_id);
       return { content: [{ type: 'text' as const, text: `Deleted item ${item_id}` }] };
+    },
+  );
+
+  server.tool(
+    'update_collection',
+    'Rename a collection',
+    {
+      collection_id: z.string().describe('The collection ID'),
+      name: z.string().describe('New collection name'),
+    },
+    async ({ collection_id, name }) => {
+      const collection = await updateCollection(collection_id, { name });
+      return { content: [{ type: 'text' as const, text: JSON.stringify(collection, null, 2) }] };
+    },
+  );
+
+  server.tool(
+    'delete_collection',
+    'Delete a collection and all its fields, items, and values',
+    { collection_id: z.string().describe('The collection ID to delete') },
+    async ({ collection_id }) => {
+      await deleteCollection(collection_id);
+      return { content: [{ type: 'text' as const, text: `Deleted collection ${collection_id}` }] };
+    },
+  );
+
+  server.tool(
+    'update_collection_field',
+    'Update a collection field (rename, change type, update reference)',
+    {
+      field_id: z.string().describe('The field ID to update'),
+      name: z.string().optional().describe('New field name'),
+      type: z.enum(['text', 'number', 'boolean', 'date', 'reference', 'multi_reference', 'rich_text', 'image', 'audio', 'video', 'document', 'link', 'email', 'phone', 'color', 'status']).optional().describe('New field type'),
+      reference_collection_id: z.string().optional().describe('For reference fields: target collection ID'),
+    },
+    async ({ field_id, ...updates }) => {
+      const field = await updateField(field_id, updates);
+      return { content: [{ type: 'text' as const, text: JSON.stringify(field, null, 2) }] };
+    },
+  );
+
+  server.tool(
+    'delete_collection_field',
+    'Delete a field from a collection. This also removes all values for this field.',
+    { field_id: z.string().describe('The field ID to delete') },
+    async ({ field_id }) => {
+      await deleteField(field_id);
+      return { content: [{ type: 'text' as const, text: `Deleted field ${field_id}` }] };
     },
   );
 }

@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { uploadFile } from '@/lib/file-upload';
-import { getAllAssets } from '@/lib/repositories/assetRepository';
+import { getAllAssets, getAssetById, updateAsset, deleteAsset } from '@/lib/repositories/assetRepository';
 
 export function registerAssetTools(server: McpServer) {
   server.tool(
@@ -94,6 +94,46 @@ Use base64_data for images generated locally (e.g. AI-generated images in a sand
           isError: true,
         };
       }
+    },
+  );
+  server.tool(
+    'get_asset',
+    'Get details of a single asset by ID',
+    { asset_id: z.string().describe('The asset ID') },
+    async ({ asset_id }) => {
+      const asset = await getAssetById(asset_id);
+      if (!asset) {
+        return { content: [{ type: 'text' as const, text: `Error: Asset "${asset_id}" not found.` }], isError: true };
+      }
+      return { content: [{ type: 'text' as const, text: JSON.stringify(asset, null, 2) }] };
+    },
+  );
+
+  server.tool(
+    'update_asset',
+    'Update an asset (rename or move to a folder)',
+    {
+      asset_id: z.string().describe('The asset ID'),
+      filename: z.string().optional().describe('New filename'),
+      folder_id: z.string().nullable().optional().describe('Move to folder ID, or null for root'),
+    },
+    async ({ asset_id, filename, folder_id }) => {
+      const updates: Record<string, unknown> = {};
+      if (filename !== undefined) updates.filename = filename;
+      if (folder_id !== undefined) updates.asset_folder_id = folder_id;
+
+      const asset = await updateAsset(asset_id, updates);
+      return { content: [{ type: 'text' as const, text: JSON.stringify({ message: `Updated asset "${asset.filename}"`, asset }, null, 2) }] };
+    },
+  );
+
+  server.tool(
+    'delete_asset',
+    'Delete an asset from the library',
+    { asset_id: z.string().describe('The asset ID to delete') },
+    async ({ asset_id }) => {
+      await deleteAsset(asset_id);
+      return { content: [{ type: 'text' as const, text: `Deleted asset ${asset_id}` }] };
     },
   );
 }
