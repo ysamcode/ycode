@@ -69,6 +69,7 @@ export function registerReferenceResources(server: McpServer) {
             content: {
               heading: 'Heading text (h1). 48px bold.',
               text: 'Paragraph text (p). 16px.',
+              richText: 'Rich text block with headings, paragraphs, lists, blockquotes, links, bold/italic. Use set_rich_text_content or rich_content in add_layer to set structured content.',
             },
             media: {
               image: 'Image element.',

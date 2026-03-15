@@ -2,11 +2,11 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { getUnpublishedPages, getAllDraftPages } from '@/lib/repositories/pageRepository';
 import { getUnpublishedLayerStyles, publishLayerStyles } from '@/lib/repositories/layerStyleRepository';
 import { getUnpublishedComponents, publishComponents } from '@/lib/repositories/componentRepository';
-import { getAllCollections } from '@/lib/repositories/collectionRepository';
+import { getAllCollections, getUnpublishedCollections } from '@/lib/repositories/collectionRepository';
 import { getItemsByCollectionId } from '@/lib/repositories/collectionItemRepository';
 import { getUnpublishedAssets, publishAssets, hardDeleteSoftDeletedAssets } from '@/lib/repositories/assetRepository';
 import { getUnpublishedAssetFolders, publishAssetFolders, hardDeleteSoftDeletedAssetFolders } from '@/lib/repositories/assetFolderRepository';
-import { publishFonts } from '@/lib/repositories/fontRepository';
+import { getUnpublishedFonts, publishFonts } from '@/lib/repositories/fontRepository';
 import { publishPages } from '@/lib/services/pageService';
 import { publishCollectionWithItems } from '@/lib/services/collectionService';
 import { publishLocalisation } from '@/lib/services/localisationService';
@@ -18,15 +18,21 @@ import { clearAllCache } from '@/lib/services/cacheService';
 export function registerPublishingTools(server: McpServer) {
   server.tool(
     'get_unpublished_changes',
-    'Check what changes are pending and need to be published',
+    'Check what changes are pending and need to be published. Reports unpublished pages, styles, components, collections, fonts, and assets.',
     {},
     async () => {
-      const [pages, styles] = await Promise.all([
+      const [pages, styles, components, collections, fonts, assets, assetFolders] = await Promise.all([
         getUnpublishedPages().catch(() => []),
         getUnpublishedLayerStyles().catch(() => []),
+        getUnpublishedComponents().catch(() => []),
+        getUnpublishedCollections().catch(() => []),
+        getUnpublishedFonts().catch(() => []),
+        getUnpublishedAssets().catch(() => []),
+        getUnpublishedAssetFolders().catch(() => []),
       ]);
 
-      const hasChanges = pages.length > 0 || styles.length > 0;
+      const hasChanges = pages.length > 0 || styles.length > 0 || components.length > 0
+        || collections.length > 0 || fonts.length > 0 || assets.length > 0 || assetFolders.length > 0;
 
       return {
         content: [{
@@ -35,6 +41,11 @@ export function registerPublishingTools(server: McpServer) {
             has_unpublished_changes: hasChanges,
             unpublished_pages: pages.map((p) => ({ id: p.id, name: p.name })),
             unpublished_styles: styles.map((s) => ({ id: s.id, name: s.name })),
+            unpublished_components: components.map((c: { id: string; name: string }) => ({ id: c.id, name: c.name })),
+            unpublished_collections: collections.map((c: { id: string; name: string }) => ({ id: c.id, name: c.name })),
+            unpublished_fonts: fonts.map((f) => ({ id: f.id, family: f.family })),
+            unpublished_assets: assets.length,
+            unpublished_asset_folders: assetFolders.length,
           }, null, 2),
         }],
       };

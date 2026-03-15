@@ -11,9 +11,11 @@ import {
   canHaveChildren,
   createLayerFromTemplate,
   getTiptapTextContent,
+  buildTiptapDoc,
   applyDesignToLayer,
   ELEMENT_TEMPLATES,
 } from '@/lib/mcp/utils';
+import type { RichTextBlock } from '@/lib/mcp/utils';
 import { broadcastLayersChanged } from '@/lib/mcp/broadcast';
 import { designSchema } from './shared-schemas';
 
@@ -50,7 +52,7 @@ before making changes.`,
 
 ELEMENT TYPES:
 - Structure: div, section, container, hr
-- Content: heading (h1), text (paragraph)
+- Content: heading (h1), text (paragraph), richText (rich text block with formatting)
 - Media: image, video, audio, icon, iframe
 - Actions: button
 - Forms: form, input, textarea
@@ -64,10 +66,16 @@ NESTING RULES:
       parent_layer_id: z.string().describe('ID of the parent layer to insert into'),
       position: z.number().optional().describe('Index within parent children. Omit to append at end.'),
       template: templateEnum.describe('Element template to create'),
-      text_content: z.string().optional().describe('For text/heading/button: the display text'),
+      text_content: z.string().optional().describe('For text/heading/button/richText: plain display text'),
+      rich_content: z.array(z.object({
+        type: z.enum(['paragraph', 'heading', 'blockquote', 'bulletList', 'orderedList', 'codeBlock', 'horizontalRule']),
+        text: z.string().optional().describe('Text content. Supports **bold**, *italic*, [link](url).'),
+        level: z.number().optional().describe('Heading level 1-6 (for heading type)'),
+        items: z.array(z.string()).optional().describe('List items (for bulletList/orderedList)'),
+      })).optional().describe('For richText: structured content blocks. Overrides text_content.'),
       custom_name: z.string().optional().describe('Custom display name for the layer'),
     },
-    async ({ page_id, parent_layer_id, position, template, text_content, custom_name }) => {
+    async ({ page_id, parent_layer_id, position, template, text_content, rich_content, custom_name }) => {
       const layers = await getPageLayers(page_id);
 
       const parent = findLayerById(layers, parent_layer_id);
@@ -81,7 +89,11 @@ NESTING RULES:
         return { content: [{ type: 'text' as const, text: 'Error: Sections cannot contain other sections.' }], isError: true };
       }
 
-      const newLayer = createLayerFromTemplate(template, { customName: custom_name, textContent: text_content });
+      const newLayer = createLayerFromTemplate(template, {
+        customName: custom_name,
+        textContent: text_content,
+        richContent: rich_content as RichTextBlock[] | undefined,
+      });
       if (!newLayer) {
         return { content: [{ type: 'text' as const, text: `Error: Unknown template "${template}".` }], isError: true };
       }
@@ -146,7 +158,7 @@ IMPORTANT: Set isActive: true on any design category you want to apply.`,
 
   server.tool(
     'update_layer_text',
-    'Update the text content of a text, heading, or button layer.',
+    'Update the text content of a text, heading, or button layer. For richText layers with formatting, use set_rich_text_content instead.',
     {
       page_id: z.string().describe('The page ID'),
       layer_id: z.string().describe('The layer ID to update'),
@@ -170,6 +182,50 @@ IMPORTANT: Set isActive: true on any design category you want to apply.`,
 
       await savePageLayers(page_id, updated);
       return { content: [{ type: 'text' as const, text: `Updated text for "${layer.customName || layer.name}" to "${text}"` }] };
+    },
+  );
+
+  server.tool(
+    'set_rich_text_content',
+    `Set the content of a richText layer using structured blocks. Supports headings, paragraphs, lists, blockquotes, code blocks, and horizontal rules. Text supports inline formatting: **bold**, *italic*, [link text](url).`,
+    {
+      page_id: z.string().describe('The page ID'),
+      layer_id: z.string().describe('The richText layer ID'),
+      blocks: z.array(z.object({
+        type: z.enum(['paragraph', 'heading', 'blockquote', 'bulletList', 'orderedList', 'codeBlock', 'horizontalRule']),
+        text: z.string().optional().describe('Text content. Supports **bold**, *italic*, [link](url).'),
+        level: z.number().optional().describe('Heading level 1-6 (for heading type only)'),
+        items: z.array(z.string()).optional().describe('List items (for bulletList/orderedList only)'),
+      })).min(1).describe('Content blocks to set'),
+    },
+    async ({ page_id, layer_id, blocks }) => {
+      const layers = await getPageLayers(page_id);
+
+      const layer = findLayerById(layers, layer_id);
+      if (!layer) {
+        return { content: [{ type: 'text' as const, text: `Error: Layer "${layer_id}" not found.` }], isError: true };
+      }
+
+      const tiptapDoc = buildTiptapDoc(blocks as RichTextBlock[]);
+
+      const updated = updateLayerById(layers, layer_id, (l) => ({
+        ...l,
+        variables: {
+          ...l.variables,
+          text: { type: 'dynamic_rich_text', data: { content: tiptapDoc } },
+        },
+      }));
+
+      await savePageLayers(page_id, updated);
+      return {
+        content: [{
+          type: 'text' as const,
+          text: JSON.stringify({
+            message: `Set rich text content for "${layer.customName || layer.name}" (${blocks.length} blocks)`,
+            layer_id,
+          }, null, 2),
+        }],
+      };
     },
   );
 

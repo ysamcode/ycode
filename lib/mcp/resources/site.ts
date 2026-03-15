@@ -3,6 +3,9 @@ import { getAllPages } from '@/lib/repositories/pageRepository';
 import { getAllPageFolders } from '@/lib/repositories/pageFolderRepository';
 import { getAllCollections } from '@/lib/repositories/collectionRepository';
 import { getFieldsByCollectionId } from '@/lib/repositories/collectionFieldRepository';
+import { getAllColorVariables } from '@/lib/repositories/colorVariableRepository';
+import { getAllFonts } from '@/lib/repositories/fontRepository';
+import { getAllLocales } from '@/lib/repositories/localeRepository';
 
 export function registerSiteResources(server: McpServer) {
   server.resource(
@@ -75,6 +78,50 @@ export function registerSiteResources(server: McpServer) {
           uri: 'ycode://site/collections',
           mimeType: 'application/json',
           text: JSON.stringify(schema, null, 2),
+        }],
+      };
+    },
+  );
+
+  server.resource(
+    'site-design-tokens',
+    'ycode://site/design-tokens',
+    {
+      description: 'Current design tokens — color variables, fonts, and locales configured for the site',
+      mimeType: 'application/json',
+    },
+    async () => {
+      const [colorVariables, fonts, locales] = await Promise.all([
+        getAllColorVariables().catch(() => []),
+        getAllFonts().catch(() => []),
+        getAllLocales(false).catch(() => []),
+      ]);
+
+      return {
+        contents: [{
+          uri: 'ycode://site/design-tokens',
+          mimeType: 'application/json',
+          text: JSON.stringify({
+            color_variables: colorVariables.map((v) => ({
+              id: v.id,
+              name: v.name,
+              value: v.value,
+              usage: `var(--${v.id})`,
+            })),
+            fonts: fonts.map((f) => ({
+              id: f.id,
+              family: f.family,
+              type: f.type,
+              category: f.category,
+              weights: f.weights,
+            })),
+            locales: locales.map((l) => ({
+              id: l.id,
+              code: l.code,
+              label: l.label,
+              is_default: l.is_default,
+            })),
+          }, null, 2),
         }],
       };
     },

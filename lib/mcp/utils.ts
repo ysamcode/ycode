@@ -92,9 +92,17 @@ export function canHaveChildren(layer: Layer): boolean {
   return !LEAF_ELEMENTS.has(layer.name);
 }
 
+export interface TiptapNode {
+  type: string;
+  attrs?: Record<string, unknown>;
+  content?: TiptapNode[];
+  text?: string;
+  marks?: Array<{ type: string; attrs?: Record<string, unknown> }>;
+}
+
 export interface TiptapDoc {
   type: 'doc';
-  content: Array<{ type: 'paragraph'; content: Array<{ type: 'text'; text: string }> }>;
+  content: TiptapNode[];
 }
 
 export function getTiptapTextContent(text: string): TiptapDoc {
@@ -102,6 +110,119 @@ export function getTiptapTextContent(text: string): TiptapDoc {
     type: 'doc',
     content: [{ type: 'paragraph', content: text ? [{ type: 'text', text }] : [] }],
   };
+}
+
+/**
+ * Build a Tiptap document from a simplified block array.
+ * Accepts an array of block descriptors and produces valid Tiptap JSON.
+ *
+ * Block types:
+ *  - { type: "paragraph", text: "..." }
+ *  - { type: "heading", level: 1-6, text: "..." }
+ *  - { type: "blockquote", text: "..." }
+ *  - { type: "bulletList", items: ["...", "..."] }
+ *  - { type: "orderedList", items: ["...", "..."] }
+ *  - { type: "codeBlock", text: "..." }
+ *  - { type: "horizontalRule" }
+ *
+ * Text can include simple inline formatting via markdown-like syntax:
+ *  - **bold**, *italic*, [link text](url)
+ */
+export function buildTiptapDoc(blocks: RichTextBlock[]): TiptapDoc {
+  return {
+    type: 'doc',
+    content: blocks.map(blockToTiptapNode),
+  };
+}
+
+export interface RichTextBlock {
+  type: 'paragraph' | 'heading' | 'blockquote' | 'bulletList' | 'orderedList' | 'codeBlock' | 'horizontalRule';
+  text?: string;
+  level?: number;
+  items?: string[];
+}
+
+function parseInlineMarks(text: string): TiptapNode[] {
+  const nodes: TiptapNode[] = [];
+  const regex = /\*\*(.+?)\*\*|\*(.+?)\*|\[(.+?)\]\((.+?)\)/g;
+  let lastIndex = 0;
+  let match;
+
+  while ((match = regex.exec(text)) !== null) {
+    if (match.index > lastIndex) {
+      nodes.push({ type: 'text', text: text.slice(lastIndex, match.index) });
+    }
+    if (match[1]) {
+      nodes.push({ type: 'text', text: match[1], marks: [{ type: 'bold' }] });
+    } else if (match[2]) {
+      nodes.push({ type: 'text', text: match[2], marks: [{ type: 'italic' }] });
+    } else if (match[3] && match[4]) {
+      nodes.push({
+        type: 'text',
+        text: match[3],
+        marks: [{ type: 'richTextLink', attrs: { href: match[4], linkType: 'url' } }],
+      });
+    }
+    lastIndex = match.index + match[0].length;
+  }
+
+  if (lastIndex < text.length) {
+    nodes.push({ type: 'text', text: text.slice(lastIndex) });
+  }
+
+  return nodes.length > 0 ? nodes : [{ type: 'text', text }];
+}
+
+function blockToTiptapNode(block: RichTextBlock): TiptapNode {
+  switch (block.type) {
+    case 'heading':
+      return {
+        type: 'heading',
+        attrs: { level: block.level || 2 },
+        content: block.text ? parseInlineMarks(block.text) : [],
+      };
+    case 'paragraph':
+      return {
+        type: 'paragraph',
+        content: block.text ? parseInlineMarks(block.text) : [],
+      };
+    case 'blockquote':
+      return {
+        type: 'blockquote',
+        content: [{
+          type: 'paragraph',
+          content: block.text ? parseInlineMarks(block.text) : [],
+        }],
+      };
+    case 'bulletList':
+      return {
+        type: 'bulletList',
+        content: (block.items || []).map((item) => ({
+          type: 'listItem',
+          content: [{ type: 'paragraph', content: parseInlineMarks(item) }],
+        })),
+      };
+    case 'orderedList':
+      return {
+        type: 'orderedList',
+        content: (block.items || []).map((item) => ({
+          type: 'listItem',
+          content: [{ type: 'paragraph', content: parseInlineMarks(item) }],
+        })),
+      };
+    case 'codeBlock':
+      return {
+        type: 'codeBlock',
+        content: block.text ? [{ type: 'text', text: block.text }] : [],
+      };
+    case 'horizontalRule':
+      return { type: 'horizontalRule' };
+    default:
+      return {
+        type: 'paragraph',
+        content: block.text ? [{ type: 'text', text: block.text }] : [],
+      };
+  }
 }
 
 export function applyDesignToLayer(
@@ -334,11 +455,38 @@ export const ELEMENT_TEMPLATES: Record<string, { name: string; description: stri
       variables: { iframe: { src: { type: 'dynamic_text', data: { content: '' } } } },
     },
   },
+  richText: {
+    name: 'Rich Text',
+    description: 'Rich text block with headings, paragraphs, lists, quotes, links, and inline formatting',
+    template: {
+      name: 'richText',
+      classes: ['flex', 'flex-col', 'gap-[16px]', 'text-[16px]'],
+      restrictions: { editText: true },
+      design: {
+        layout: { isActive: true, display: 'Flex', flexDirection: 'column', gap: '16px' },
+        typography: { isActive: true, fontSize: '16px' },
+      },
+      variables: {
+        text: {
+          type: 'dynamic_rich_text',
+          data: {
+            content: {
+              type: 'doc',
+              content: [
+                { type: 'heading', attrs: { level: 2 }, content: [{ type: 'text', text: 'Heading' }] },
+                { type: 'paragraph', content: [{ type: 'text', text: 'Start writing your content here.' }] },
+              ],
+            },
+          },
+        },
+      },
+    },
+  },
 };
 
 export function createLayerFromTemplate(
   templateKey: string,
-  overrides?: { customName?: string; textContent?: string },
+  overrides?: { customName?: string; textContent?: string; richContent?: RichTextBlock[] },
 ): Layer | null {
   const entry = ELEMENT_TEMPLATES[templateKey];
   if (!entry) return null;
@@ -357,10 +505,17 @@ export function createLayerFromTemplate(
     layer.customName = overrides.customName;
   }
 
-  if (overrides?.textContent && layer.name === 'text') {
+  if (overrides?.textContent && (layer.name === 'text' || layer.name === 'richText')) {
     layer.variables = {
       ...layer.variables,
       text: { type: 'dynamic_rich_text', data: { content: getTiptapTextContent(overrides.textContent) } },
+    };
+  }
+
+  if (overrides?.richContent && layer.name === 'richText') {
+    layer.variables = {
+      ...layer.variables,
+      text: { type: 'dynamic_rich_text', data: { content: buildTiptapDoc(overrides.richContent) } },
     };
   }
 

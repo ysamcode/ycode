@@ -41,6 +41,7 @@ Each layer has:
 **Content** (leaf elements, no children):
 - \`text\` — Text element. Set tag via settings.tag: "h1"-"h6", "p", "span", "label"
 - \`heading\` — Shortcut for text with tag h1 and large font
+- \`richText\` — Rich text block supporting headings, paragraphs, lists, blockquotes, links, bold/italic
 
 **Media** (leaf elements):
 - \`image\` — Image element
@@ -117,6 +118,27 @@ Each layer's \`design\` object controls its appearance. Use update_layer_design 
 - top/right/bottom/left: "0", "16px"
 - zIndex: "10"
 
+### Rich Text
+
+Use \`richText\` layers for long-form content with mixed formatting:
+
+**Creating a richText layer:**
+\`\`\`
+add_layer({ template: "richText", rich_content: [
+  { type: "heading", level: 2, text: "Getting Started" },
+  { type: "paragraph", text: "This is a **bold** and *italic* example with a [link](https://example.com)." },
+  { type: "bulletList", items: ["First item", "Second item", "Third item"] },
+  { type: "blockquote", text: "A notable quote." },
+  { type: "paragraph", text: "More content here." }
+]})
+\`\`\`
+
+**Updating rich text content:**
+Use \`set_rich_text_content\` or the batch \`set_rich_text\` operation.
+
+**Supported block types:** paragraph, heading (level 1-6), blockquote, bulletList, orderedList, codeBlock, horizontalRule
+**Inline formatting:** \`**bold**\`, \`*italic*\`, \`[link text](url)\`
+
 ### Components (Reusable Elements)
 
 Components are reusable layer trees that can be instanced across pages.
@@ -162,10 +184,60 @@ YCode has a built-in CMS. Collections are like database tables:
 
 Field types: text, number, boolean, date, reference, rich-text, color, asset, status
 
+### Color Variables (Design Tokens)
+
+Color variables are site-wide CSS custom properties for consistent theming:
+- Use list_color_variables to see all defined colors
+- Use create_color_variable with name and value ("#hex" or "#hex/opacity")
+- Reference in designs as "var(--<id>)" in color fields
+- Use reorder_color_variables to control display order
+
+### Fonts
+
+Manage Google Fonts available to the site:
+- Use list_fonts to see added fonts
+- Use add_font to add a Google Font (name, family, weights)
+- Once added, use the family name in typography.fontFamily
+
+### Locales & Translations (i18n)
+
+Multi-language support:
+- Use list_locales to see configured languages
+- Use create_locale with ISO 639-1 code (e.g. "fr", "de", "ja")
+- Use set_translation to translate content for a locale
+- Use batch_set_translations for bulk translations
+- Each translation targets a source (page/component/cms) + content_key
+
+### Page Folders
+
+Organize pages into folders with shared URL prefixes:
+- Use list_page_folders to see the folder hierarchy
+- Use create_page_folder to create folders (nest with page_folder_id)
+- Pages inherit the folder slug as a URL prefix
+
+### Asset Folders
+
+Organize uploaded files into folders:
+- Use list_asset_folders to see asset folder structure
+- Use create_asset_folder to organize assets
+
+### Form Submissions
+
+View and manage form data submitted by visitors:
+- Use list_forms to see all forms with submission counts
+- Use list_form_submissions to see entries for a specific form
+- Use update_form_submission_status to mark as read/archived/spam
+
+### Site Settings
+
+Global site configuration:
+- Use get_settings to view all settings or a specific key
+- Use set_setting to update individual settings (site_name, site_description, custom_css, etc.)
+
 ### Publishing
 
 All changes are drafts until published:
-- Use get_unpublished_changes to see what needs publishing
+- Use get_unpublished_changes to see what needs publishing (pages, styles, components, collections, fonts, assets)
 - Use publish to make everything live
 
 ---

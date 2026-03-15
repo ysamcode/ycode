@@ -11,9 +11,11 @@ import {
   canHaveChildren,
   createLayerFromTemplate,
   getTiptapTextContent,
+  buildTiptapDoc,
   applyDesignToLayer,
   ELEMENT_TEMPLATES,
 } from '@/lib/mcp/utils';
+import type { RichTextBlock } from '@/lib/mcp/utils';
 import { broadcastLayersChanged } from '@/lib/mcp/broadcast';
 import { designSchema } from './shared-schemas';
 
@@ -21,12 +23,20 @@ const templateEnum = z.enum(
   Object.keys(ELEMENT_TEMPLATES) as [string, ...string[]],
 );
 
+const richTextBlockSchema = z.object({
+  type: z.enum(['paragraph', 'heading', 'blockquote', 'bulletList', 'orderedList', 'codeBlock', 'horizontalRule']),
+  text: z.string().optional(),
+  level: z.number().optional(),
+  items: z.array(z.string()).optional(),
+});
+
 const addLayerOp = z.object({
   type: z.literal('add_layer'),
   parent_layer_id: z.string().describe('ID of existing parent, or a ref_id from an earlier operation'),
   position: z.number().optional(),
   template: templateEnum,
   text_content: z.string().optional(),
+  rich_content: z.array(richTextBlockSchema).optional().describe('For richText: structured content blocks'),
   custom_name: z.string().optional(),
   ref_id: z.string().optional().describe('A reference ID so later operations can target this layer'),
   design: designSchema.optional().describe('Design properties to apply immediately on creation'),
@@ -69,8 +79,14 @@ const applyStyleOp = z.object({
   style_id: z.string().describe('Layer style ID to apply'),
 });
 
+const setRichTextOp = z.object({
+  type: z.literal('set_rich_text'),
+  layer_id: z.string().describe('RichText layer ID or ref_id'),
+  blocks: z.array(richTextBlockSchema).min(1).describe('Content blocks (paragraph, heading, list, etc.)'),
+});
+
 const operationSchema = z.discriminatedUnion('type', [
-  addLayerOp, updateDesignOp, updateTextOp, updateImageOp, deleteLayerOp, moveLayerOp, applyStyleOp,
+  addLayerOp, updateDesignOp, updateTextOp, updateImageOp, deleteLayerOp, moveLayerOp, applyStyleOp, setRichTextOp,
 ]);
 
 function resolveId(id: string, refMap: Map<string, string>): string {
@@ -115,7 +131,11 @@ EXAMPLE:
               if (!parent) { results.push({ op: i, status: 'error', detail: `Parent "${op.parent_layer_id}" not found` }); continue; }
               if (!canHaveChildren(parent)) { results.push({ op: i, status: 'error', detail: `"${parent.customName || parent.name}" cannot have children` }); continue; }
 
-              let newLayer = createLayerFromTemplate(op.template, { customName: op.custom_name, textContent: op.text_content });
+              let newLayer = createLayerFromTemplate(op.template, {
+                customName: op.custom_name,
+                textContent: op.text_content,
+                richContent: op.rich_content as RichTextBlock[] | undefined,
+              });
               if (!newLayer) { results.push({ op: i, status: 'error', detail: `Unknown template "${op.template}"` }); continue; }
 
               if (op.design) {
@@ -205,6 +225,19 @@ EXAMPLE:
               if (!layer) { results.push({ op: i, status: 'error', detail: `Layer "${op.layer_id}" not found` }); continue; }
               layers = updateLayerById(layers, layerId, (l) => ({ ...l, styleId: op.style_id }));
               results.push({ op: i, status: 'ok', detail: `Applied style to "${layer.customName || layer.name}"` });
+              break;
+            }
+
+            case 'set_rich_text': {
+              const layerId = resolveId(op.layer_id, refMap);
+              const layer = findLayerById(layers, layerId);
+              if (!layer) { results.push({ op: i, status: 'error', detail: `Layer "${op.layer_id}" not found` }); continue; }
+              const tiptapDoc = buildTiptapDoc(op.blocks as RichTextBlock[]);
+              layers = updateLayerById(layers, layerId, (l) => ({
+                ...l,
+                variables: { ...l.variables, text: { type: 'dynamic_rich_text', data: { content: tiptapDoc } } },
+              }));
+              results.push({ op: i, status: 'ok', detail: `Set rich text on "${layer.customName || layer.name}" (${op.blocks.length} blocks)` });
               break;
             }
           }
