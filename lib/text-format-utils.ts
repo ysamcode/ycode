@@ -1002,6 +1002,19 @@ export function renderRichText(
   // If there's only a single paragraph, render its content inline (no <p> or <span> wrapper)
   if (doc.content.length === 1 && doc.content[0].type === 'paragraph') {
     const paragraph = doc.content[0];
+
+    // When the sole paragraph contains only a rich_text CMS variable, the variable expands
+    // to multiple block elements. Return them unwrapped so they become direct children of
+    // the parent container — otherwise flex gap/spacing breaks.
+    const hasSoleRichTextVariable = paragraph.content?.length === 1 &&
+      paragraph.content[0].type === 'dynamicVariable' &&
+      paragraph.content[0].attrs?.variable?.data?.field_type === 'rich_text';
+
+    if (hasSoleRichTextVariable) {
+      const inlineContent = renderInlineContent(paragraph.content, collectionItemData, pageCollectionItemData, textStyles, isEditMode, linkContext, timezone, layerDataMap, components, renderComponentBlock, ancestorComponentIds);
+      return Array.isArray(inlineContent) ? inlineContent : [inlineContent];
+    }
+
     if (!paragraph.content || paragraph.content.length === 0) {
       if (isEditMode && !isSimpleTextElement) {
         const paragraphClass = textStyles?.paragraph?.classes ?? DEFAULT_TEXT_STYLES.paragraph?.classes ?? '';

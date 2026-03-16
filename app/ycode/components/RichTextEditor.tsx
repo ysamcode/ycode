@@ -55,7 +55,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { CollectionFieldSelector, type FieldSourceType } from './CollectionFieldSelector';
-import { flattenFieldGroups, hasFieldsMatching, DISPLAYABLE_FIELD_TYPES, type FieldGroup } from '@/lib/collection-field-utils';
+import { flattenFieldGroups, filterFieldGroupsByType, RICH_TEXT_ONLY_FIELD_TYPES, type FieldGroup } from '@/lib/collection-field-utils';
 import { DynamicVariable, getDynamicVariableLabel } from '@/lib/tiptap-extensions/dynamic-variable';
 import { RichTextComponent } from '@/lib/tiptap-extensions/rich-text-component';
 import { RichTextLink, getLinkSettingsFromMark } from '@/lib/tiptap-extensions/rich-text-link';
@@ -63,7 +63,7 @@ import { RichTextImage } from '@/lib/tiptap-extensions/rich-text-image';
 import RichTextLinkPopover from './RichTextLinkPopover';
 import RichTextComponentPicker from './RichTextComponentPicker';
 import RichTextComponentBlock from './RichTextComponentBlock';
-import type { Layer, LinkSettings, LinkType, Asset } from '@/types';
+import type { CollectionFieldType, Layer, LinkSettings, LinkType, Asset } from '@/types';
 import { DEFAULT_TEXT_STYLES } from '@/lib/text-format-utils';
 import { useEditorStore } from '@/stores/useEditorStore';
 
@@ -101,6 +101,8 @@ interface RichTextEditorProps {
   fullHeight?: boolean;
   /** Callback to open the full editor sheet (shown as expand button in toolbar) */
   onExpandClick?: () => void;
+  /** CMS field types allowed for variable binding (defaults to RICH_TEXT_FIELD_TYPES) */
+  allowedFieldTypes?: CollectionFieldType[];
 }
 
 export interface RichTextEditorHandle {
@@ -319,6 +321,7 @@ const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorProps>(({
   excludedLinkTypes = [],
   fullHeight = false,
   onExpandClick,
+  allowedFieldTypes = RICH_TEXT_ONLY_FIELD_TYPES,
 }, ref) => {
   const isFullVariant = variant === 'full';
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -331,11 +334,11 @@ const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorProps>(({
   // Derive a flat list of fields from fieldGroups (for internal use like parseValueToContent)
   const fields = useMemo(() => flattenFieldGroups(fieldGroups), [fieldGroups]);
 
-  // Check if there are any displayable fields (exclude multi_reference)
-  const canShowVariables = useMemo(
-    () => hasFieldsMatching(fieldGroups, f => DISPLAYABLE_FIELD_TYPES.includes(f.type)),
-    [fieldGroups]
+  const textFieldGroups = useMemo(
+    () => filterFieldGroupsByType(fieldGroups, allowedFieldTypes),
+    [fieldGroups, allowedFieldTypes]
   );
+  const canShowVariables = textFieldGroups.length > 0;
 
   const extensions = useMemo(() => {
     const baseExtensions = [
@@ -938,14 +941,14 @@ const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorProps>(({
                     </button>
                   </ToggleGroupItem>
                 </DropdownMenuTrigger>
-                {fieldGroups && (
+                {canShowVariables && (
                   <DropdownMenuContent
                     className="w-56 py-1 px-1"
                     align="start"
                     sideOffset={4}
                   >
                     <CollectionFieldSelector
-                      fieldGroups={fieldGroups}
+                      fieldGroups={textFieldGroups}
                       allFields={allFields || {}}
                       collections={collections || []}
                       onSelect={handleFieldSelect}
@@ -1209,14 +1212,14 @@ const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorProps>(({
               </Button>
             </DropdownMenuTrigger>
 
-            {canShowVariables && fieldGroups && (
+            {canShowVariables && (
               <DropdownMenuContent
                 className="w-56 py-1 px-1"
                 align="start"
                 sideOffset={4}
               >
                 <CollectionFieldSelector
-                  fieldGroups={fieldGroups}
+                  fieldGroups={textFieldGroups}
                   allFields={allFields || {}}
                   collections={collections || []}
                   onSelect={handleFieldSelect}
@@ -1346,14 +1349,14 @@ const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorProps>(({
               </Button>
             </DropdownMenuTrigger>
 
-            {fieldGroups && (
+            {canShowVariables && (
               <DropdownMenuContent
                 className="w-56 py-1 px-1"
                 align="end"
                 sideOffset={4}
               >
                 <CollectionFieldSelector
-                  fieldGroups={fieldGroups}
+                  fieldGroups={textFieldGroups}
                   allFields={allFields || {}}
                   collections={collections || []}
                   onSelect={handleFieldSelect}

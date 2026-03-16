@@ -446,7 +446,16 @@ export const AUDIO_FIELD_TYPES: CollectionFieldType[] = ['audio'];
 export const VIDEO_FIELD_TYPES: CollectionFieldType[] = ['video'];
 
 /** Field types that contain plain text values (for YouTube video IDs, etc.) */
-export const TEXT_FIELD_TYPES: CollectionFieldType[] = ['text'];
+export const VIDEO_ID_FIELD_TYPES: CollectionFieldType[] = ['text'];
+
+/** Field types that can be bound to simple text content (excludes rich_text and media/asset types) */
+export const SIMPLE_TEXT_FIELD_TYPES: CollectionFieldType[] = ['text', 'number', 'date', 'email', 'phone'];
+
+/** Field types that can be bound to rich text content (excludes media/asset types) */
+export const RICH_TEXT_FIELD_TYPES: CollectionFieldType[] = [...SIMPLE_TEXT_FIELD_TYPES, 'rich_text'];
+
+/** Field types for richText layer CMS bindings (only rich_text) */
+export const RICH_TEXT_ONLY_FIELD_TYPES: CollectionFieldType[] = ['rich_text'];
 
 /** Field types that can be bound to link layers for downloads (document fields) */
 export const DOCUMENT_FIELD_TYPES: CollectionFieldType[] = ['document'];

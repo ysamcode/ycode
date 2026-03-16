@@ -61,7 +61,7 @@ import { getTranslationValue } from '@/lib/localisation-utils';
 import { cn } from '@/lib/utils';
 import { getCollectionVariable, canDeleteLayer, findLayerById, findParentCollectionLayer, canLayerHaveLink, updateLayerProps, removeRichTextSublayer } from '@/lib/layer-utils';
 import { CANVAS_BORDER, CANVAS_PADDING } from '@/lib/canvas-utils';
-import { buildFieldGroupsForLayer, hasFieldsMatching, flattenFieldGroups, DISPLAYABLE_FIELD_TYPES } from '@/lib/collection-field-utils';
+import { buildFieldGroupsForLayer, flattenFieldGroups, filterFieldGroupsByType, SIMPLE_TEXT_FIELD_TYPES } from '@/lib/collection-field-utils';
 import { getRichTextValue } from '@/lib/tiptap-utils';
 import { DropContainerIndicator, DropLineIndicator } from '@/components/DropIndicators';
 import { DragCaptureOverlay } from '@/components/DragCaptureOverlay';
@@ -991,6 +991,11 @@ const CenterCanvas = React.memo(function CenterCanvas({
     if (!layers.length) return undefined;
     return buildFieldGroupsForLayer(editingLayerId, layers, currentPage, collectionFieldsFromStore, collectionsFromStore);
   }, [editingLayerId, editingComponentId, componentDrafts, currentPageId, currentDraft, currentPage, collectionFieldsFromStore, collectionsFromStore]);
+
+  const textFieldGroups = useMemo(
+    () => filterFieldGroupsByType(fieldGroups, SIMPLE_TEXT_FIELD_TYPES),
+    [fieldGroups],
+  );
 
   // Create assets map for Canvas (asset ID -> asset)
   const assetsMap = useMemo(() => {
@@ -2057,7 +2062,7 @@ const CenterCanvas = React.memo(function CenterCanvas({
           </ToggleGroup>
 
           {/* Inline Variable Button */}
-          {hasFieldsMatching(fieldGroups, f => DISPLAYABLE_FIELD_TYPES.includes(f.type)) && (
+          {textFieldGroups.length > 0 && (
             <ToggleGroup
               type="single"
               size="xs"
@@ -2086,7 +2091,7 @@ const CenterCanvas = React.memo(function CenterCanvas({
                     sideOffset={4}
                   >
                     <CollectionFieldSelector
-                      fieldGroups={fieldGroups}
+                      fieldGroups={textFieldGroups}
                       allFields={collectionFieldsFromStore}
                       collections={collectionsFromStore}
                       onSelect={(fieldId, relationshipPath, source) => {

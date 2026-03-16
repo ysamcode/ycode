@@ -16,10 +16,10 @@ import {
 import RichTextEditor from './RichTextEditor';
 import RichTextEditorSheet from './RichTextEditorSheet';
 import { CollectionFieldSelector, type FieldSourceType } from './CollectionFieldSelector';
-import { hasLinkOrComponent } from '@/lib/tiptap-utils';
+import { hasLinkOrComponent, getSoleCmsFieldBinding } from '@/lib/tiptap-utils';
 import { getVariableLabel } from '@/lib/cms-variables-utils';
-import { flattenFieldGroups, hasFieldsMatching, DISPLAYABLE_FIELD_TYPES } from '@/lib/collection-field-utils';
-import type { CollectionField, Collection } from '@/types';
+import { flattenFieldGroups, filterFieldGroupsByType, RICH_TEXT_ONLY_FIELD_TYPES } from '@/lib/collection-field-utils';
+import type { CollectionField, Collection, CollectionFieldType } from '@/types';
 import type { FieldGroup } from '@/lib/collection-field-utils';
 
 interface ExpandableRichTextEditorProps {
@@ -38,6 +38,8 @@ interface ExpandableRichTextEditorProps {
   disabled?: boolean;
   /** Only show the button, hide the inline editor */
   buttonOnly?: boolean;
+  /** CMS field types allowed for variable binding (defaults to RICH_TEXT_ONLY_FIELD_TYPES) */
+  allowedFieldTypes?: CollectionFieldType[];
 }
 
 export default function ExpandableRichTextEditor({
@@ -52,15 +54,23 @@ export default function ExpandableRichTextEditor({
   collections,
   disabled = false,
   buttonOnly = false,
+  allowedFieldTypes = RICH_TEXT_ONLY_FIELD_TYPES,
 }: ExpandableRichTextEditorProps) {
   const [sheetOpen, setSheetOpen] = useState(false);
   const [cmsDropdownOpen, setCmsDropdownOpen] = useState(false);
   const isComplex = useMemo(() => hasLinkOrComponent(value), [value]);
 
-  const canShowVariables = useMemo(
-    () => hasFieldsMatching(fieldGroups, f => DISPLAYABLE_FIELD_TYPES.includes(f.type)),
-    [fieldGroups],
+  const richTextBinding = useMemo(() => {
+    if (!buttonOnly) return null;
+    const binding = getSoleCmsFieldBinding(value);
+    return binding?.field_type === 'rich_text' ? binding : null;
+  }, [buttonOnly, value]);
+
+  const textFieldGroups = useMemo(
+    () => filterFieldGroupsByType(fieldGroups, allowedFieldTypes),
+    [fieldGroups, allowedFieldTypes],
   );
+  const canShowVariables = textFieldGroups.length > 0;
 
   const fields = useMemo(
     () => flattenFieldGroups(fieldGroups),
@@ -95,6 +105,54 @@ export default function ExpandableRichTextEditor({
     setCmsDropdownOpen(false);
   };
 
+  if (richTextBinding && !sheetOpen) {
+    return (
+      <>
+        <Button
+          asChild
+          variant="data"
+          className="justify-between! cursor-pointer"
+          onClick={() => setSheetOpen(true)}
+        >
+          <div>
+            <span className="flex items-center gap-1.5 truncate">
+              <Icon name="database" className="size-3 opacity-60 shrink-0" />
+              <span className="truncate">{richTextBinding.label || 'CMS Field'}</span>
+            </span>
+            <Button
+              className="size-4! p-0! shrink-0"
+              variant="outline"
+              onClick={(e) => {
+                e.stopPropagation();
+                onChange({
+                  type: 'doc',
+                  content: [{ type: 'paragraph' }],
+                });
+              }}
+            >
+              <Icon name="x" className="size-2" />
+            </Button>
+          </div>
+        </Button>
+        <RichTextEditorSheet
+          open={sheetOpen}
+          onOpenChange={(open) => {
+            setSheetOpen(open);
+            if (!open) onBlur?.(value);
+          }}
+          title={sheetTitle}
+          description={sheetDescription}
+          value={value}
+          onChange={onChange}
+          placeholder={placeholder}
+          fieldGroups={fieldGroups}
+          allFields={allFields}
+          collections={collections}
+        />
+      </>
+    );
+  }
+
   return (
     <div className="flex flex-col gap-1.5">
       <div className="flex gap-1.5">
@@ -120,7 +178,6 @@ export default function ExpandableRichTextEditor({
                 size="sm"
                 variant="secondary"
                 title="Insert CMS Variable"
-                disabled={disabled}
               >
                 <Icon name="database" className="size-3" />
               </Button>
@@ -132,7 +189,7 @@ export default function ExpandableRichTextEditor({
                 sideOffset={4}
               >
                 <CollectionFieldSelector
-                  fieldGroups={fieldGroups}
+                  fieldGroups={textFieldGroups}
                   allFields={allFields || {}}
                   collections={collections || []}
                   onSelect={handleFieldSelect}
@@ -155,6 +212,7 @@ export default function ExpandableRichTextEditor({
           withFormatting={true}
           showFormattingToolbar={false}
           disabled={disabled}
+          allowedFieldTypes={allowedFieldTypes}
         />
       )}
 

@@ -16,7 +16,7 @@ import {
 import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
 import RichTextEditor from './RichTextEditor';
 import type { CollectionField, Collection } from '@/types';
-import type { FieldGroup } from '@/lib/collection-field-utils';
+import { RICH_TEXT_FIELD_TYPES, type FieldGroup } from '@/lib/collection-field-utils';
 
 interface RichTextEditorSheetProps {
   open: boolean;
@@ -82,6 +82,7 @@ export default function RichTextEditorSheet({
           showFormattingToolbar={true}
           variant="full"
           fullHeight
+          allowedFieldTypes={RICH_TEXT_FIELD_TYPES}
         />
       </SheetContent>
     </Sheet>

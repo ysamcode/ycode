@@ -186,7 +186,7 @@ export function hasLinkOrComponent(node: any): boolean {
 }
 
 /** Extract the first CMS field binding from Tiptap JSON content (dynamicVariable node with type 'field'). */
-export function getCmsFieldBinding(node: any): { field_id: string; label?: string; source?: 'page' | 'collection'; collection_layer_id?: string } | null {
+export function getCmsFieldBinding(node: any): { field_id: string; label?: string; source?: 'page' | 'collection'; collection_layer_id?: string; field_type?: string | null } | null {
   if (!node || typeof node !== 'object') return null;
   if (node.type === 'dynamicVariable') {
     const variable = node.attrs?.variable;
@@ -196,6 +196,7 @@ export function getCmsFieldBinding(node: any): { field_id: string; label?: strin
         label: node.attrs?.label,
         source: variable.data.source,
         collection_layer_id: variable.data.collection_layer_id,
+        field_type: variable.data.field_type ?? null,
       };
     }
   }
@@ -206,6 +207,19 @@ export function getCmsFieldBinding(node: any): { field_id: string; label?: strin
     }
   }
   return null;
+}
+
+/** Check if content is exactly one CMS variable with no other nodes (doc > 1 paragraph > 1 dynamicVariable) */
+export function getSoleCmsFieldBinding(content: any): ReturnType<typeof getCmsFieldBinding> {
+  if (!content || content.type !== 'doc') return null;
+  const paragraphs = content.content;
+  if (!Array.isArray(paragraphs) || paragraphs.length !== 1) return null;
+  const paragraph = paragraphs[0];
+  if (paragraph.type !== 'paragraph') return null;
+  const nodes = paragraph.content;
+  if (!Array.isArray(nodes) || nodes.length !== 1) return null;
+  if (nodes[0].type !== 'dynamicVariable') return null;
+  return getCmsFieldBinding(nodes[0]);
 }
 
 /** Check if Tiptap JSON content contains components or inline variables (non-editable on canvas). */

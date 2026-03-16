@@ -90,9 +90,9 @@ import { isFieldVariable, getCollectionVariable, findParentCollectionLayer, find
 import { detachSpecificLayerFromComponent } from '@/lib/component-utils';
 import { convertContentToValue, parseValueToContent } from '@/lib/cms-variables-utils';
 import { createTextComponentVariableValue } from '@/lib/variable-utils';
-import { getRichTextValue, extractPlainTextFromTiptap, getCmsFieldBinding } from '@/lib/tiptap-utils';
+import { getRichTextValue, extractPlainTextFromTiptap } from '@/lib/tiptap-utils';
 import { DEFAULT_TEXT_STYLES, getTextStyle, getTiptapTextContent } from '@/lib/text-format-utils';
-import { buildFieldGroupsForLayer, getFieldIcon, isMultipleAssetField, MULTI_ASSET_COLLECTION_ID } from '@/lib/collection-field-utils';
+import { buildFieldGroupsForLayer, getFieldIcon, isMultipleAssetField, MULTI_ASSET_COLLECTION_ID, SIMPLE_TEXT_FIELD_TYPES } from '@/lib/collection-field-utils';
 import { getInverseReferenceFields } from '@/lib/collection-utils';
 
 // 7. Types
@@ -2046,55 +2046,22 @@ const RightSidebar = React.memo(function RightSidebar({
                           fieldGroups={fieldGroups}
                           allFields={fields}
                           collections={collections}
+                          allowedFieldTypes={SIMPLE_TEXT_FIELD_TYPES}
                         />
-                      ) : (() => {
-                        const contentValue = getContentValue(selectedLayer);
-                        const cmsBinding = isRichTextLayer(selectedLayer) ? getCmsFieldBinding(contentValue) : null;
-
-                        if (cmsBinding) {
-                          return (
-                            <Button
-                              asChild
-                              variant="data"
-                              className="justify-between!"
-                            >
-                              <div>
-                                <span className="flex items-center gap-1.5 truncate">
-                                  <Icon name="database" className="size-3 opacity-60 shrink-0" />
-                                  <span className="truncate">{cmsBinding.label || 'CMS Field'}</span>
-                                </span>
-                                <Button
-                                  className="size-4! p-0! shrink-0"
-                                  variant="outline"
-                                  onClick={() => {
-                                    handleContentChange({
-                                      type: 'doc',
-                                      content: [{ type: 'paragraph' }],
-                                    });
-                                  }}
-                                >
-                                  <Icon name="x" className="size-2" />
-                                </Button>
-                              </div>
-                            </Button>
-                          );
-                        }
-
-                        return (
-                          <ExpandableRichTextEditor
-                            key={selectedLayerId}
-                            value={contentValue}
-                            onChange={handleContentChange}
-                            placeholder="Enter text..."
-                            sheetDescription="Element content"
-                            fieldGroups={fieldGroups}
-                            allFields={fields}
-                            collections={collections}
-                            disabled={showTextStyleControls}
-                            buttonOnly={isRichTextLayer(selectedLayer)}
-                          />
-                        );
-                      })()}
+                      ) : (
+                        <ExpandableRichTextEditor
+                          key={selectedLayerId}
+                          value={getContentValue(selectedLayer)}
+                          onChange={handleContentChange}
+                          placeholder="Enter text..."
+                          sheetDescription="Element content"
+                          fieldGroups={fieldGroups}
+                          allFields={fields}
+                          collections={collections}
+                          disabled={showTextStyleControls}
+                          buttonOnly={isRichTextLayer(selectedLayer)}
+                        />
+                      )}
                     </div>
                   </div>
                 </SettingsPanel>
