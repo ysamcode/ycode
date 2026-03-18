@@ -45,7 +45,7 @@ import LocaleSelector from '@/components/layers/LocaleSelector';
 import { usePagesStore } from '@/stores/usePagesStore';
 import { useSettingsStore } from '@/stores/useSettingsStore';
 import { generateLinkHref, type LinkResolutionContext } from '@/lib/link-utils';
-import type { HiddenLayerInfo } from '@/lib/animation-utils';
+import { collectEditorHiddenLayerIds, type HiddenLayerInfo } from '@/lib/animation-utils';
 import AnimationInitializer from '@/components/AnimationInitializer';
 import { transformLayerIdsForInstance, resolveVariableLinks } from '@/lib/resolve-components';
 
@@ -944,8 +944,11 @@ const LayerItem: React.FC<{
     pageCollectionItemData
   );
 
-  // Get image alt text and apply translation if available
-  const originalImageAlt = getDynamicTextContent(effectiveImageSettings?.alt) || 'Image';
+  // Get image alt text, resolve inline variables, and apply translation if available
+  const rawImageAlt = getDynamicTextContent(effectiveImageSettings?.alt) || 'Image';
+  const originalImageAlt = rawImageAlt.includes('<ycode-inline-variable>')
+    ? resolveInlineVariablesFromData(rawImageAlt, collectionLayerData, pageCollectionItemData ?? undefined, timezone, effectiveLayerDataMap)
+    : rawImageAlt;
   const translatedImageAlt = getTranslatedText(
     originalImageAlt,
     `layer:${layer.id}:image_alt`,
@@ -1054,6 +1057,19 @@ const LayerItem: React.FC<{
     }
     return null;
   }, [isEditMode, component, layer.id]);
+
+  // Collect hidden layer IDs from the component's transformed layers
+  // Needed because Canvas computes editorHiddenLayerIds from serializeLayers (different ID transform)
+  const componentEditorHiddenLayerIds = useMemo(() => {
+    if (!transformedComponentLayers || !editorHiddenLayerIds) return editorHiddenLayerIds;
+    const componentHidden = collectEditorHiddenLayerIds(transformedComponentLayers);
+    if (componentHidden.size === 0) return editorHiddenLayerIds;
+    const merged = new Map(editorHiddenLayerIds);
+    componentHidden.forEach((breakpoints, layerId) => {
+      merged.set(layerId, breakpoints);
+    });
+    return merged;
+  }, [transformedComponentLayers, editorHiddenLayerIds]);
 
   const collectionVariable = getCollectionVariable(layer);
   const isCollectionLayer = !!collectionVariable;
@@ -1462,6 +1478,7 @@ const LayerItem: React.FC<{
         <LayerRenderer
           layers={layersWithInstanceId}
           {...sharedRendererProps}
+          editorHiddenLayerIds={componentEditorHiddenLayerIds}
           enableDragDrop={enableDragDrop}
           activeLayerId={activeLayerId}
           projected={projected}
@@ -1721,27 +1738,30 @@ const LayerItem: React.FC<{
     // Hide elements that have display: hidden animation with on-load apply style (edit mode only)
     // Show them when selected or when a child is selected
     // Only hide on the breakpoints the animation applies to
+    // Inside component instances, always hide (internal layers can't be individually selected)
     if (isEditMode && editorHiddenLayerIds?.has(layer.id)) {
       const hiddenBreakpoints = editorHiddenLayerIds.get(layer.id) || [];
-      // Empty array means all breakpoints, otherwise check if current breakpoint matches
       const shouldHideOnBreakpoint = hiddenBreakpoints.length === 0 ||
         (editorBreakpoint && hiddenBreakpoints.includes(editorBreakpoint));
 
       if (shouldHideOnBreakpoint) {
-        const storeSelectedId = useEditorStore.getState().selectedLayerId;
-        const isSelectedOrChildSelected = isSelected || (storeSelectedId && (() => {
-          const checkDescendants = (children: Layer[] | undefined): boolean => {
-            if (!children) return false;
-            for (const child of children) {
-              if (child.id === storeSelectedId) return true;
-              if (checkDescendants(child.children)) return true;
-            }
-            return false;
-          };
-          return checkDescendants(layer.children);
-        })());
+        const shouldHide = parentComponentLayerId || (() => {
+          const storeSelectedId = useEditorStore.getState().selectedLayerId;
+          const isSelectedOrChildSelected = isSelected || (storeSelectedId && (() => {
+            const checkDescendants = (children: Layer[] | undefined): boolean => {
+              if (!children) return false;
+              for (const child of children) {
+                if (child.id === storeSelectedId) return true;
+                if (checkDescendants(child.children)) return true;
+              }
+              return false;
+            };
+            return checkDescendants(layer.children);
+          })());
+          return !isSelectedOrChildSelected;
+        })();
 
-        if (!isSelectedOrChildSelected) {
+        if (shouldHide) {
           const existingStyle = typeof elementProps.style === 'object' ? elementProps.style : {};
           elementProps.style = { ...existingStyle, display: 'none' };
         }
