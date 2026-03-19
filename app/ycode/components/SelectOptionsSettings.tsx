@@ -941,7 +941,7 @@ export default function SelectOptionsSettings({
                         />
                       </Button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent className="w-[var(--radix-dropdown-menu-trigger-width)]">
+                    <DropdownMenuContent align="end" className="min-w-[var(--radix-dropdown-menu-trigger-width)]">
                       {sourceItems.map((item) => (
                         <DropdownMenuCheckboxItem
                           key={item.id}
@@ -985,7 +985,7 @@ export default function SelectOptionsSettings({
                     <SelectTrigger className="w-full">
                       <SelectValue placeholder="None" />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent align="end">
                       <SelectItem value="none">None</SelectItem>
                       {sourceItems.map((item) => (
                         <SelectItem key={item.id} value={item.id}>
