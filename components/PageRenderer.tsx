@@ -353,7 +353,7 @@ export default async function PageRenderer({
         }}
       />
 
-      <div
+      <main
         id="ybody"
         className="contents"
         data-layer-id="body"
@@ -387,7 +387,7 @@ export default async function PageRenderer({
             isPublished={passwordProtection.isPublished}
           />
         )}
-      </div>
+      </main>
 
       {/* Initialize GSAP animations based on layer interactions */}
       <AnimationInitializer layers={resolvedLayers} />
