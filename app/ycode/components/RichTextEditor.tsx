@@ -98,6 +98,8 @@ interface RichTextEditorProps {
   size?: 'xs' | 'sm';
   /** Link types to exclude from the link settings dropdown */
   excludedLinkTypes?: LinkType[];
+  /** Hide "Current page item" and "Reference field" options (e.g. when editing CMS item content) */
+  hidePageContextOptions?: boolean;
   /** Stretch editor to fill parent height (scrolls content instead of growing) */
   fullHeight?: boolean;
   /** Callback to open the full editor sheet (shown as expand button in toolbar) */
@@ -320,6 +322,7 @@ const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorProps>(({
   variant = 'compact',
   size = 'xs',
   excludedLinkTypes = [],
+  hidePageContextOptions = false,
   fullHeight = false,
   onExpandClick,
   allowedFieldTypes = RICH_TEXT_ONLY_FIELD_TYPES,
@@ -813,6 +816,7 @@ const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorProps>(({
                 open={linkPopoverOpen}
                 onOpenChange={setLinkPopoverOpen}
                 excludedLinkTypes={excludedLinkTypes}
+                hidePageContextOptions={hidePageContextOptions}
                 trigger={
                   <ToggleGroupItem
                     value="link"
@@ -1252,6 +1256,7 @@ const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorProps>(({
                 open={linkPopoverOpen}
                 onOpenChange={setLinkPopoverOpen}
                 excludedLinkTypes={excludedLinkTypes}
+                hidePageContextOptions={hidePageContextOptions}
                 trigger={
                   <Button
                     type="button"
