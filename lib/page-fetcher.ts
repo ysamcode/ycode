@@ -1353,7 +1353,8 @@ function resolveRichTextVariables(
     const isBlockNode = (n: any) =>
       n?.type === 'paragraph' || n?.type === 'heading' ||
       n?.type === 'bulletList' || n?.type === 'orderedList' ||
-      n?.type === 'richTextComponent' || n?.type === 'richTextImage';
+      n?.type === 'richTextComponent' || n?.type === 'richTextImage' ||
+      n?.type === 'horizontalRule';
     const hasBlockChildren = result.content.some(isBlockNode);
     if (hasBlockChildren) {
       const lifted: any[] = [];
@@ -3165,6 +3166,14 @@ function renderTiptapToHtml(
     }
 
     return imgTag;
+  }
+
+  // Handle horizontal rules (separator)
+  if (content.type === 'horizontalRule') {
+    const mergedStyles = { ...DEFAULT_TEXT_STYLES, ...textStyles };
+    const hrClass = mergedStyles?.horizontalRule?.classes || '';
+    const classAttr = hrClass ? ` class="${escapeHtml(hrClass)}"` : '';
+    return `<hr${classAttr} />`;
   }
 
   // Handle embedded component blocks
