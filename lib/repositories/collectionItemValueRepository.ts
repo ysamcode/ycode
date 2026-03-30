@@ -71,18 +71,6 @@ export async function insertValuesBulk(
   if (error) {
     throw new Error(`Failed to bulk insert values: ${error.message}`);
   }
-
-  // Compute and store content_hash per item
-  const valuesByItem = new Map<string, Array<{ field_id: string; value: string | null; is_published: boolean }>>();
-  for (const v of values) {
-    const key = v.item_id;
-    if (!valuesByItem.has(key)) valuesByItem.set(key, []);
-    valuesByItem.get(key)!.push({ field_id: v.field_id, value: v.value, is_published: v.is_published ?? false });
-  }
-  for (const [itemId, itemValues] of valuesByItem) {
-    const hash = generateCollectionItemContentHash(itemValues.map(v => ({ field_id: v.field_id, value: v.value })));
-    await updateContentHash(itemId, itemValues[0].is_published, hash);
-  }
 }
 
 export interface UpdateCollectionItemValueData {

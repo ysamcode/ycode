@@ -33,7 +33,7 @@ import { parseMultiReferenceValue } from '@/lib/collection-utils';
 import { combineBgValues, mergeStaticBgVars } from '@/lib/tailwind-class-mapper';
 import { getAssetsByIds } from '@/lib/repositories/assetRepository';
 import { isVirtualAssetField, findDisplayField } from '@/lib/collection-field-utils';
-import type { FieldVariable, AssetVariable, DynamicTextVariable } from '@/types';
+import type { FieldVariable, AssetVariable, DynamicTextVariable, LinkSettings } from '@/types';
 import type { DesignColorVariable } from '@/types';
 
 /**
@@ -3144,13 +3144,27 @@ function renderTiptapToHtml(
     return '<br>';
   }
 
-  // Handle rich-text images
+  // Handle rich-text images (optionally wrapped in a link)
   if (content.type === 'richTextImage') {
     const src = content.attrs?.src ? escapeHtml(content.attrs.src) : '';
     const alt = content.attrs?.alt ? escapeHtml(content.attrs.alt) : '';
     const imgClass = textStyles?.richTextImage?.classes || '';
     const classAttr = imgClass ? ` class="${escapeHtml(imgClass)}"` : '';
-    return `<img src="${src}" alt="${alt}"${classAttr} />`;
+    const imgTag = `<img src="${src}" alt="${alt}"${classAttr} />`;
+
+    const storedLink = content.attrs?.link as LinkSettings | null;
+    if (storedLink?.type && linkContext) {
+      const resolvedHref = generateLinkHref(storedLink, linkContext);
+      if (resolvedHref) {
+        const href = escapeHtml(resolvedHref);
+        const target = storedLink.target ? ` target="${escapeHtml(storedLink.target)}"` : '';
+        const rel = storedLink.target === '_blank' ? ' rel="noopener noreferrer"' : '';
+        const download = storedLink.download ? ' download' : '';
+        return `<a href="${href}"${target}${rel}${download}>${imgTag}</a>`;
+      }
+    }
+
+    return imgTag;
   }
 
   // Handle embedded component blocks

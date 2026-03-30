@@ -243,6 +243,33 @@ export function getTiptapTextContent(text: string): {
 }
 
 /**
+ * Resolve the link href for a richTextImage node.
+ * Reads from the `link` attribute (full LinkSettings) first, falling back to legacy `href`.
+ * In edit mode, uses '#' placeholder to avoid expensive link resolution.
+ */
+function resolveImageLinkHref(
+  attrs: Record<string, unknown> | undefined,
+  isEditMode: boolean,
+  linkContext?: RichTextLinkContext,
+  collectionItemData?: Record<string, string>,
+  pageCollectionItemData?: Record<string, string>,
+): string | null {
+  if (!attrs) return null;
+
+  const storedLink = attrs.link as LinkSettings | null;
+  if (!storedLink?.type) return null;
+
+  if (isEditMode) return '#';
+
+  const fullContext: LinkResolutionContext = {
+    ...linkContext,
+    collectionItemData,
+    pageCollectionItemData,
+  };
+  return generateLinkHref(storedLink, fullContext) || null;
+}
+
+/**
  * Flatten multi-paragraph Tiptap content into a single paragraph with hardBreak nodes.
  * Used for heading/text elements that should not contain nested block elements.
  * Converts: [paragraph("a"), paragraph("b")] → [paragraph("a", hardBreak, "b")]
@@ -568,7 +595,20 @@ function renderInlineContent(
       if (node.attrs?.assetId) {
         imgProps['data-asset-id'] = node.attrs.assetId;
       }
-      return [React.createElement('img', imgProps)];
+      const imgEl = React.createElement('img', imgProps);
+
+      const imgLinkHref = resolveImageLinkHref(node.attrs, isEditMode, linkContext, collectionItemData, pageCollectionItemData);
+      if (imgLinkHref) {
+        const imgTarget = node.attrs?.link?.target || undefined;
+        return [React.createElement('a', {
+          key,
+          href: imgLinkHref,
+          target: imgTarget,
+          rel: imgTarget === '_blank' ? 'noopener noreferrer' : undefined,
+        }, imgEl)];
+      }
+
+      return [imgEl];
     }
 
     if (node.type === 'hardBreak') {
@@ -785,7 +825,20 @@ function renderBlock(
     if (block.attrs?.assetId) {
       imgProps['data-asset-id'] = block.attrs.assetId;
     }
-    return React.createElement('img', imgProps);
+    const imgElement = React.createElement('img', imgProps);
+
+    const imgLinkHref = resolveImageLinkHref(block.attrs, isEditMode, linkContext, collectionItemData, pageCollectionItemData);
+    if (imgLinkHref) {
+      const imgTarget = block.attrs?.link?.target || undefined;
+      return React.createElement('a', {
+        key,
+        href: imgLinkHref,
+        target: imgTarget,
+        rel: imgTarget === '_blank' ? 'noopener noreferrer' : undefined,
+      }, imgElement);
+    }
+
+    return imgElement;
   }
 
   if (block.type === 'horizontalRule') {
