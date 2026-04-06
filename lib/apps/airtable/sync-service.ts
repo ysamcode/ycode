@@ -319,6 +319,11 @@ export async function processWebhookNotification(
 
   const results: SyncResult[] = [];
   for (const conn of affectedConnections) {
+    const freshConn = await getConnectionById(conn.id);
+    if (freshConn?.syncStatus === 'syncing') {
+      continue;
+    }
+
     const changes = extractTableChanges(payloadResponse.payloads, conn.tableId);
     const totalChanges = changes.createdRecordIds.length
       + changes.changedRecordIds.length
