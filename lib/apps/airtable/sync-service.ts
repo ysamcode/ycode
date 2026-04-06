@@ -9,7 +9,7 @@
  * Dirty checking skips records whose mapped values haven't changed.
  */
 
-import { randomUUID } from 'crypto';
+import { randomUUID, createHash } from 'crypto';
 
 import { getSupabaseAdmin } from '@/lib/supabase-server';
 import { getAppSettingValue, setAppSetting } from '@/lib/repositories/appSettingsRepository';
@@ -39,6 +39,15 @@ const SLUG_FIELD_KEY = 'slug';
 const BULK_CHUNK_SIZE = 500;
 const ATTACHMENT_CONCURRENCY = 5;
 const INCREMENTAL_SYNC_THRESHOLD = 100;
+
+/** Deterministic UUID from collection + Airtable record ID (SHA-256 based). */
+function deterministicItemId(collectionId: string, airtableRecordId: string): string {
+  const hex = createHash('sha256')
+    .update(`airtable:${collectionId}:${airtableRecordId}`)
+    .digest('hex');
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20, 32)}`;
+}
+
 // =============================================================================
 // Connection Helpers
 // =============================================================================
@@ -303,16 +312,6 @@ export async function processWebhookNotification(
   );
 
   if (affectedConnections.length === 0) return [];
-
-  // Clean up lock rows from previous implementation
-  const client = await getSupabaseAdmin();
-  if (client) {
-    await client
-      .from('app_settings')
-      .delete()
-      .eq('app_id', APP_ID)
-      .like('key', 'sync_lock:%');
-  }
 
   const cursor = affectedConnections[0].webhookCursor || undefined;
   const payloadResponse = await getWebhookPayloads(token, baseId, webhookId, cursor);
@@ -789,25 +788,19 @@ async function executeBatchOperations(
 
   if (toCreate.length > 0) {
     try {
-      // Re-check which records still need creating — a concurrent sync may
-      // have already inserted some while this one was processing.
-      const latestValues = await getValueMapByFieldIds([ctx.recordIdFieldId]);
-      const existingRecordIdValues = latestValues.get(ctx.recordIdFieldId);
-      const knownRecordIds = existingRecordIdValues
-        ? new Set(existingRecordIdValues.values())
-        : new Set<string>();
-      const recordsToInsert = toCreate.filter((r) => !knownRecordIds.has(r.id));
+      const newItemIds = toCreate.map((r) => deterministicItemId(collectionId, r.id));
+      const newItems = newItemIds.map((id) => ({
+        id,
+        collection_id: collectionId,
+        manual_order: 0,
+        is_published: false,
+        is_publishable: true,
+      }));
 
-      if (recordsToInsert.length > 0) {
-        const newItemIds = recordsToInsert.map(() => randomUUID());
-        const newItems = newItemIds.map((id) => ({
-          id,
-          collection_id: collectionId,
-          manual_order: 0,
-          is_published: false,
-          is_publishable: true,
-        }));
+      const createdItems = await createItemsBulk(newItems, { ignoreDuplicates: true });
+      const createdIdSet = new Set(createdItems.map((i) => i.id));
 
+      if (createdItems.length > 0) {
         let nextAutoId = 1;
         if (ctx.autoFields.idFieldId) {
           for (const item of existingItems) {
@@ -819,40 +812,34 @@ async function executeBatchOperations(
           }
         }
 
-        const buildValues = async () => {
-          const now = new Date().toISOString();
-          const valuesToInsert: Array<{ item_id: string; field_id: string; value: string | null }> = [];
-          for (let i = 0; i < recordsToInsert.length; i++) {
-            const vals = await buildRecordValues(recordsToInsert[i], ctx);
+        const now = new Date().toISOString();
+        const valuesToInsert: Array<{ item_id: string; field_id: string; value: string | null }> = [];
+        for (let i = 0; i < toCreate.length; i++) {
+          if (!createdIdSet.has(newItemIds[i])) continue;
 
-            if (ctx.autoFields.idFieldId) {
-              vals[ctx.autoFields.idFieldId] = String(nextAutoId++);
-            }
-            if (ctx.autoFields.createdAtFieldId) {
-              vals[ctx.autoFields.createdAtFieldId] = now;
-            }
-            if (ctx.autoFields.updatedAtFieldId) {
-              vals[ctx.autoFields.updatedAtFieldId] = now;
-            }
+          const vals = await buildRecordValues(toCreate[i], ctx);
 
-            for (const [fieldId, value] of Object.entries(vals)) {
-              valuesToInsert.push({ item_id: newItemIds[i], field_id: fieldId, value });
-            }
+          if (ctx.autoFields.idFieldId) {
+            vals[ctx.autoFields.idFieldId] = String(nextAutoId++);
           }
-          return valuesToInsert;
-        };
+          if (ctx.autoFields.createdAtFieldId) {
+            vals[ctx.autoFields.createdAtFieldId] = now;
+          }
+          if (ctx.autoFields.updatedAtFieldId) {
+            vals[ctx.autoFields.updatedAtFieldId] = now;
+          }
 
-        const [, valuesToInsert] = await Promise.all([
-          createItemsBulk(newItems),
-          buildValues(),
-        ]);
+          for (const [fieldId, value] of Object.entries(vals)) {
+            valuesToInsert.push({ item_id: newItemIds[i], field_id: fieldId, value });
+          }
+        }
 
         for (let i = 0; i < valuesToInsert.length; i += BULK_CHUNK_SIZE) {
           await insertValuesBulk(valuesToInsert.slice(i, i + BULK_CHUNK_SIZE));
         }
       }
 
-      result.created = recordsToInsert.length;
+      result.created = createdItems.length;
     } catch (error) {
       result.errors.push(`Create failed: ${error instanceof Error ? error.message : 'Unknown'}`);
     }
