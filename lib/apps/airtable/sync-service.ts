@@ -179,7 +179,7 @@ export async function refreshActiveWebhooks(
  * @param tenantId - Captured from request headers before fire-and-forget.
  *   Passing explicitly avoids relying on AsyncLocalStorage in background context.
  */
-async function tryClaimSyncLock(webhookId: string, tenantId: string | null): Promise<boolean> {
+async function tryClaimSyncLock(webhookId: string, tenantId: string | null): Promise<'acquired' | 'busy' | 'error'> {
   try {
     const { getKnexClient } = await import('@/lib/knex-client');
     const knex = await getKnexClient();
@@ -212,9 +212,10 @@ async function tryClaimSyncLock(webhookId: string, tenantId: string | null): Pro
         [lockKey, lockValue, now, now, staleThreshold]
       );
 
-    return (result.rows?.length ?? 0) > 0;
-  } catch {
-    return false;
+    return (result.rows?.length ?? 0) > 0 ? 'acquired' : 'busy';
+  } catch (err) {
+    console.error('[Airtable Sync] Lock acquisition failed, proceeding without lock:', err);
+    return 'error';
   }
 }
 
@@ -387,13 +388,20 @@ export async function processWebhookNotification(
   tenantId?: string | null
 ): Promise<SyncResult[]> {
   const tid = tenantId ?? null;
-  const lockAcquired = await tryClaimSyncLock(webhookId, tid);
-  if (!lockAcquired) return [];
+  const lockStatus = await tryClaimSyncLock(webhookId, tid);
+
+  // Only skip when another invocation is actively processing this webhook.
+  // On lock errors, proceed anyway — better to risk a duplicate than to
+  // silently drop every webhook.
+  if (lockStatus === 'busy') return [];
+  const hasLock = lockStatus === 'acquired';
 
   const doSync = async (): Promise<SyncResult[]> => {
     try {
-      // Debounce: let rapid-fire notifications settle before hitting the API
-      await new Promise((resolve) => setTimeout(resolve, WEBHOOK_DEBOUNCE_MS));
+      if (hasLock) {
+        // Debounce: let rapid-fire notifications settle before hitting the API
+        await new Promise((resolve) => setTimeout(resolve, WEBHOOK_DEBOUNCE_MS));
+      }
 
       const token = await requireAirtableToken();
 
@@ -445,7 +453,9 @@ export async function processWebhookNotification(
 
       return results;
     } finally {
-      await releaseSyncLock(webhookId, tid);
+      if (hasLock) {
+        await releaseSyncLock(webhookId, tid);
+      }
     }
   };
 
